@@ -1,0 +1,3330 @@
+{
+  "spt_application": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(128)",
+      "null": false,
+      "key": "UNI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "description",
+      "type": "text",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "type",
+      "type": "varchar(64)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "connector_type",
+      "type": "varchar(128)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "owner",
+      "type": "varchar(32)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "features",
+      "type": "text",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_application_schema": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_archived_cert_entity": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_audit_event": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "MUL",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "interface",
+      "type": "varchar(128)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "source",
+      "type": "varchar(128)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "action",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "MUL",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "target",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "MUL",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "application",
+      "type": "varchar(128)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "account_name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "instance",
+      "type": "varchar(128)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attribute_name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attribute_value",
+      "type": "text",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "tracking_id",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_bundle": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(128)",
+      "null": false,
+      "key": "UNI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "displayable_name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "type",
+      "type": "varchar(128)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "selector",
+      "type": "mediumtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "provisioning_plan",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "disabled",
+      "type": "tinyint(1)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "risk_score_weight",
+      "type": "int",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "activity_config",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_capability": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_certification": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": false,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "description",
+      "type": "text",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "short_name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "type",
+      "type": "varchar(128)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "phase",
+      "type": "varchar(64)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "signed",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "expiration",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "parent_id",
+      "type": "varchar(32)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "completed",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "certified_entities",
+      "type": "int",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "total_entities",
+      "type": "int",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "percent_complete",
+      "type": "int",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_certification_entity": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_certification_item": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "certification_id",
+      "type": "varchar(32)",
+      "null": true,
+      "key": "MUL",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "target_id",
+      "type": "varchar(32)",
+      "null": true,
+      "key": "MUL",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "target_name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "target_display_name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "type",
+      "type": "varchar(128)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "sub_type",
+      "type": "varchar(128)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "application_id",
+      "type": "varchar(32)",
+      "null": true,
+      "key": "MUL",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "exception_entitlements",
+      "type": "mediumtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "bundle_assignment_id",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "policy",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "policy_violation",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "violation_summary",
+      "type": "text",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "status",
+      "type": "varchar(64)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "decision_made",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "decision_maker",
+      "type": "varchar(32)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_configuration": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_correlation_config": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_custom": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_dictionary": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_dynamic_scope": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_email_template": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_form": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_group_definition": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_group_index": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_identity": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(128)",
+      "null": false,
+      "key": "MUL",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "display_name",
+      "type": "varchar(128)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "email",
+      "type": "varchar(128)",
+      "null": true,
+      "key": "MUL",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "firstname",
+      "type": "varchar(128)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "lastname",
+      "type": "varchar(128)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "manager",
+      "type": "varchar(32)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "department",
+      "type": "varchar(128)",
+      "null": true,
+      "key": "MUL",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "location",
+      "type": "varchar(128)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "employee_number",
+      "type": "varchar(64)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "status",
+      "type": "varchar(32)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "last_login",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "inactive",
+      "type": "tinyint(1)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "correlated",
+      "type": "tinyint(1)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "protected",
+      "type": "tinyint(1)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_identity_archive": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_identity_assigned_roles": [
+    {
+      "name": "identity_id",
+      "type": "varchar(32)",
+      "null": true,
+      "key": "MUL",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "bundle_id",
+      "type": "varchar(32)",
+      "null": true,
+      "key": "MUL",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "assignment_id",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "start_date",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "end_date",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_identity_entitlement": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "identity_id",
+      "type": "varchar(32)",
+      "null": true,
+      "key": "MUL",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "application_id",
+      "type": "varchar(32)",
+      "null": true,
+      "key": "MUL",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "managed_attribute_id",
+      "type": "varchar(32)",
+      "null": true,
+      "key": "MUL",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "value",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "annotation",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "type",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "aggregation_state",
+      "type": "varchar(64)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "source",
+      "type": "varchar(128)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "granted",
+      "type": "tinyint(1)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "allowed",
+      "type": "tinyint(1)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_identity_request": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "requester",
+      "type": "varchar(32)",
+      "null": true,
+      "key": "MUL",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "target",
+      "type": "varchar(32)",
+      "null": true,
+      "key": "MUL",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "type",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "operation",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "state",
+      "type": "varchar(64)",
+      "null": true,
+      "key": "MUL",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "priority",
+      "type": "varchar(32)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "completion_status",
+      "type": "varchar(64)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "external_ticket_id",
+      "type": "varchar(128)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "has_messages",
+      "type": "tinyint(1)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "verified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "completed",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_identity_snapshot": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_identity_trigger": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_jasper_files": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_jasper_result": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_link": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "identity_id",
+      "type": "varchar(32)",
+      "null": true,
+      "key": "MUL",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "application_id",
+      "type": "varchar(32)",
+      "null": true,
+      "key": "MUL",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "display_name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "native_identity",
+      "type": "varchar(322)",
+      "null": true,
+      "key": "MUL",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "uuid",
+      "type": "varchar(128)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "last_refresh",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "last_target_aggregation",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "composite_score",
+      "type": "int",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_localized_attribute": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_managed_attribute": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "application_id",
+      "type": "varchar(32)",
+      "null": true,
+      "key": "MUL",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attribute",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "MUL",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "value",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "MUL",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "type",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "aggregated",
+      "type": "tinyint(1)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "requestable",
+      "type": "tinyint(1)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "uncorrelated",
+      "type": "tinyint(1)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "displayable_name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_message_template": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_mining_config": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_partition_result": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_policy": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_policy_violation": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_process_log": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_profile": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_request": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_request_definition": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_resource_event": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_right": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_role_change_event": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_role_index": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_role_metadata": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_rule": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_rule_registry": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_schema_attributes": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_scope": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_service_definition": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_sign_off_history": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_snapshot_permissions": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_target_association": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_task_definition": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_task_event": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_task_result": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "description",
+      "type": "text",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "type",
+      "type": "varchar(128)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "launcher",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "host",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "launched",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "completed",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "completion_status",
+      "type": "varchar(64)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "messages",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "progress",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "percent_complete",
+      "type": "int",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "task_terminated",
+      "type": "tinyint(1)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_uiconfig": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_widget": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_work_item": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_workflow_case": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ],
+  "spt_workflow_registry": [
+    {
+      "name": "id",
+      "type": "varchar(32)",
+      "null": false,
+      "key": "PRI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar(255)",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "modified",
+      "type": "datetime",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "attributes",
+      "type": "longtext",
+      "null": true,
+      "key": "",
+      "default": null,
+      "extra": ""
+    }
+  ]
+}
