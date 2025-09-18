@@ -34,9 +34,6 @@ class DatabaseConnection:
     def initialize(self) -> bool:
         """Initialize database connection and connection pool."""
         try:
-            # Validate configuration
-            validate_config()
-            
             # Create SQLAlchemy engine with connection pooling
             self.engine = create_engine(
                 get_database_url(),
@@ -70,17 +67,11 @@ class DatabaseConnection:
         if not self.engine:
             self.initialize()
             
-        connection = None
+        connection = self.engine.connect()
         try:
-            connection = self.engine.connect()
-            yield connection
-        except DisconnectionError:
-            logger.warning("Database disconnection detected, attempting reconnect")
-            self.initialize()  # Reinitialize connection
-            connection = self.engine.connect()
             yield connection
         except Exception as e:
-            logger.error("Database connection error", error=str(e))
+            logger.error("Error with database connection", error=str(e))
             raise
         finally:
             if connection:
@@ -101,7 +92,6 @@ class DatabaseConnection:
         
         try:
             with self.get_connection() as conn:
-                # Execute query with timeout
                 result = conn.execute(text(query), params or {})
                 
                 # Fetch results

@@ -178,8 +178,6 @@ class DatabaseMetadataAnalyzer:
                     COLUMN_COMMENT,
                     COLUMN_TYPE
                 FROM information_schema.COLUMNS 
-                WHERE TABLE_SCHEMA = DATABASE() 
-                AND TABLE_NAME = :table_name
                 ORDER BY ORDINAL_POSITION
             """), {"table_name": table_name})
             

@@ -46,10 +46,30 @@ class SQLValidator:
         
     def _load_schema(self) -> Dict[str, List[Dict[str, Any]]]:
         """Load database schema from complete_schema.json."""
-        schema_path = os.path.join(os.path.dirname(__file__), '..', '..', 'complete_schema.json')
         try:
+            # Try multiple possible paths for the schema file
+            possible_paths = [
+                os.path.join(os.path.dirname(__file__), '..', '..', 'complete_schema.json'),
+                os.path.join(os.path.dirname(__file__), '..', '..', '..', 'complete_schema.json'),
+                os.path.join(os.getcwd(), 'complete_schema.json'),
+                '/Users/saikiranbls/Downloads/sailpoint/complete_schema.json'
+            ]
+            
+            schema_path = None
+            for path in possible_paths:
+                if os.path.exists(path):
+                    schema_path = path
+                    break
+            
+            if not schema_path:
+                logger.warning(f"Schema file not found in any of the expected locations: {possible_paths}")
+                return {}
+            
             with open(schema_path, 'r') as f:
-                return json.load(f)
+                schema_data = json.load(f)
+                logger.info(f"Successfully loaded schema from {schema_path}")
+                return schema_data
+                
         except Exception as e:
             logger.warning(f"Failed to load schema: {str(e)}")
             return {}
