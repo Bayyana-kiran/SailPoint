@@ -311,6 +311,12 @@ def process_user_message(user_input: str):
                     sql_query = sql_query.split("```sql")[1].split("```")[0].strip()
                 elif "```" in sql_query:
                     sql_query = sql_query.split("```")[1].strip()
+            
+            # Handle empty or invalid SQL queries
+            if not sql_query or sql_query.startswith("--") or sql_query.startswith("SELECT '"):
+                logger.warning(f"Empty or invalid SQL query generated: '{sql_query}'")
+                sql_query = "SELECT 'Unable to generate a valid SQL query. Please rephrase your question.' as message"
+                query_confidence = 0.0
         
         # Check for potential issues with the generated query
         warning_msg = None

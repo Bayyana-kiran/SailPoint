@@ -13,9 +13,9 @@ load_dotenv()
 # Gemini API Configuration
 GEMINI_CONFIG = {
     'api_key': os.getenv('GOOGLE_API_KEY', ''),
-    'model': os.getenv('GEMINI_MODEL', 'gemini-2.5-flash'),
+    'model': os.getenv('GEMINI_MODEL', 'gemini-1.5-flash'),  # Changed to more stable model
     'temperature': float(os.getenv('GEMINI_TEMPERATURE', 0.1)),
-    'max_tokens': int(os.getenv('GEMINI_MAX_TOKENS', 8192)),
+    'max_tokens': int(os.getenv('GEMINI_MAX_TOKENS', 2048)),  # Reduced for faster responses
     'top_p': float(os.getenv('GEMINI_TOP_P', 0.8)),
     'top_k': int(os.getenv('GEMINI_TOP_K', 40)),
 }
@@ -60,16 +60,36 @@ SAFETY MEASURES:
 # Prompt Templates
 PROMPT_TEMPLATES = {
     'sql_generation': """
-Based on the database schema and user question, generate a safe MySQL SELECT query.
+You are an expert SQL assistant for SailPoint IdentityIQ databases. Generate ONLY safe SELECT queries.
 
-Database Schema:
+CRITICAL REQUIREMENTS:
+1. ONLY generate SELECT, SHOW, DESCRIBE, or EXPLAIN queries - NEVER any data modification queries
+2. Always format SQL in ```sql code blocks
+3. Include LIMIT clauses to prevent large results (max 100 rows)
+4. Use proper MySQL syntax
+5. Reference only tables that exist in the schema
+6. Provide clear explanations
+
+SCHEMA CONTEXT:
 {schema_context}
 
-User Question: {user_question}
+USER QUESTION: {user_question}
 
-Additional Context: {additional_context}
+ADDITIONAL CONTEXT: {additional_context}
 
-Generate a safe, efficient MySQL query that answers the user's question.
+INSTRUCTIONS:
+- If the question is about policies, query the spt_policy table
+- If about users/identities, query spt_identity table  
+- If about applications, query spt_application table
+- If about roles, query spt_bundle table where type='role'
+- Always include an explanation of what the query does
+
+Generate the SQL query in this exact format:
+```sql
+SELECT [columns] FROM [table] WHERE [conditions] LIMIT [number];
+```
+
+Then provide an explanation.
 """,
     
     'query_explanation': """
@@ -139,6 +159,27 @@ GENERATION_CONFIG = {
     "top_k": GEMINI_CONFIG['top_k'],
     "max_output_tokens": GEMINI_CONFIG['max_tokens'],
     "response_mime_type": "text/plain",
+}
+
+# Structured Generation Configuration for JSON output
+STRUCTURED_GENERATION_CONFIG = {
+    "temperature": GEMINI_CONFIG['temperature'],
+    "top_p": GEMINI_CONFIG['top_p'],
+    "top_k": GEMINI_CONFIG['top_k'],
+    "max_output_tokens": GEMINI_CONFIG['max_tokens'],
+    "response_mime_type": "application/json",
+    "response_schema": {
+        "type": "object",
+        "properties": {
+            "sql": {"type": "string", "description": "The generated SQL query"},
+            "explanation": {"type": "string", "description": "Explanation of what the query does"},
+            "confidence": {"type": "number", "description": "Confidence score between 0 and 1"},
+            "query_type": {"type": "string", "description": "Type of query (SELECT, SHOW, etc.)"},
+            "tables_used": {"type": "array", "items": {"type": "string"}, "description": "List of tables used in the query"},
+            "is_valid": {"type": "boolean", "description": "Whether the SQL is valid"}
+        },
+        "required": ["sql", "explanation", "is_valid"]
+    }
 }
 
 def validate_gemini_config() -> bool:

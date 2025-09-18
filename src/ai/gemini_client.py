@@ -1,16 +1,14 @@
 """
-Advanced SQL Generation Engine
-Uses structured function calling, query validation, and multi-step reasoning 
-instead of primitive prompt parsing for production-grade text-to-SQL conversion.
+Simplified and Optimized SQL Generation Engine
+Uses direct text generation with optimized prompts and token management.
 """
 
 import time
-import json
 import logging
 import re
-from typing import Dict, Any, List, Optional, Tuple, Union
-from dataclasses import dataclass, asdict
-from enum import Enum
+import json
+from typing import Dict, Any, List, Optional, Tuple
+from dataclasses import dataclass
 
 try:
     import google.generativeai as genai
@@ -18,62 +16,14 @@ try:
     GEMINI_AVAILABLE = True
 except ImportError:
     GEMINI_AVAILABLE = False
-    logger = logging.getLogger(__name__)
-    logger.warning("Google Generative AI not available. Using fallback mode.")
-
-# Fallback to OpenAI if available
-try:
-    import openai
-    OPENAI_AVAILABLE = True
-except ImportError:
-    OPENAI_AVAILABLE = False
 
 from config.gemini import (
-    GEMINI_CONFIG, SYSTEM_INSTRUCTIONS, PROMPT_TEMPLATES,
-    SAFETY_SETTINGS, GENERATION_CONFIG, validate_gemini_config
+    GEMINI_CONFIG, SAFETY_SETTINGS, STRUCTURED_GENERATION_CONFIG, validate_gemini_config
 )
-
-# Import validator for schema validation
-try:
-    from src.security.validator import sql_validator, ValidationResult
-    VALIDATOR_AVAILABLE = True
-except ImportError:
-    VALIDATOR_AVAILABLE = False
-    ValidationResult = None
 
 logger = logging.getLogger(__name__)
 
-class QueryIntent(Enum):
-    """Types of SQL query intents."""
-    SELECT_DATA = "select_data"
-    COUNT_RECORDS = "count_records"
-    AGGREGATE_DATA = "aggregate_data"
-    JOIN_TABLES = "join_tables"
-    FILTER_DATA = "filter_data"
-    SORT_DATA = "sort_data"
-    SCHEMA_INFO = "schema_info"
-    UNKNOWN = "unknown"
 
-class QueryComplexity(Enum):
-    """Query complexity levels."""
-    SIMPLE = "simple"      # Single table, basic WHERE
-    MODERATE = "moderate"  # Multiple tables, basic JOINs
-    COMPLEX = "complex"    # Subqueries, CTEs, window functions
-    ADVANCED = "advanced"  # Complex analytical queries
-
-@dataclass
-class QueryAnalysis:
-    """Analysis of user query intent and requirements."""
-    intent: QueryIntent
-    complexity: QueryComplexity
-    tables_mentioned: List[str]
-    columns_mentioned: List[str]
-    conditions: List[str]
-    aggregations: List[str]
-    confidence_score: float
-    reasoning: str
-
-@dataclass
 @dataclass
 class SQLQuery:
     """Structured SQL query representation."""
@@ -86,23 +36,14 @@ class SQLQuery:
     explanation: str
     potential_issues: List[str]
     optimization_suggestions: List[str]
+    token_count: Optional[int] = None
 
-@dataclass
-class ChatMessage:
-    """Enhanced chat message with metadata."""
-    role: str
-    content: str
-    timestamp: float
-    query_analysis: Optional[QueryAnalysis] = None
-    generated_sql: Optional[SQLQuery] = None
-    metadata: Optional[Dict[str, Any]] = None
 
 @dataclass
 class GenerationResponse:
     """Enhanced response with structured data."""
     sql_query: Optional[SQLQuery] = None
     explanation: str = ""
-    query_analysis: Optional[QueryAnalysis] = None
     usage_metadata: Optional[Dict[str, Any]] = None
     safety_ratings: Optional[List[Dict[str, Any]]] = None
     finish_reason: Optional[str] = None
@@ -110,183 +51,42 @@ class GenerationResponse:
     success: bool = True
     error_message: Optional[str] = None
 
-class AdvancedSQLEngine:
+
+class OptimizedSQLEngine:
     """
-    Advanced SQL generation engine using structured reasoning, function calling,
-    and multi-step validation instead of simple prompt parsing.
+    Optimized SQL generation engine using direct text generation with token management.
     """
-    
+
     def __init__(self):
         self.model = None
-        self.chat_session = None
-        self.conversation_history: List[ChatMessage] = []
+        self.conversation_history = []
         self.total_tokens_used = 0
         self.request_count = 0
         self._initialized = False
-        self.schema_cache: Dict[str, Any] = {}
-        self.query_patterns: Dict[str, str] = {}
-        self._load_query_patterns()
-    
-    def _load_query_patterns(self):
-        """Load common SQL query patterns for intent recognition."""
-        self.query_patterns = {
-            "count": r'\b(how many|count|number of|total)\b',
-            "top": r'\b(top|best|highest|largest|maximum)\b',
-            "bottom": r'\b(bottom|worst|lowest|smallest|minimum)\b',
-            "average": r'\b(average|avg|mean)\b',
-            "sum": r'\b(sum|total|add up)\b',
-            "recent": r'\b(recent|latest|newest|last)\b',
-            "old": r'\b(old|oldest|earliest|first)\b',
-            "list": r'\b(list|show|display|get)\b',
-            "compare": r'\b(compare|vs|versus|difference)\b',
-            "between": r'\b(between|from .* to|range)\b'
-        }
-    
+        self.last_schema_context = ""
+        self.query_cache = {}
+
     def initialize(self) -> bool:
-        """Initialize the advanced SQL engine."""
+        """Initialize the optimized SQL engine."""
         try:
-            if GEMINI_AVAILABLE:
-                # Validate configuration
-                validate_gemini_config()
-                
-                # Configure API
-                genai.configure(api_key=GEMINI_CONFIG['api_key'])
-                
-                # Initialize model (simplified for compatibility)
-                self.model = genai.GenerativeModel(
-                    model_name=GEMINI_CONFIG['model'],
-                    generation_config=GENERATION_CONFIG,
-                    safety_settings=SAFETY_SETTINGS
-                )
-                
-                # Start chat session
-                self.chat_session = self.model.start_chat(history=[])
-                
-                self._initialized = True
-                logger.info(f"Advanced SQL engine initialized with model: {GEMINI_CONFIG['model']}")
-                return True
-                
-            elif OPENAI_AVAILABLE:
-                # Fallback to OpenAI (simple implementation)
-                self.model = "openai-fallback"
-                self.chat_session = None
-                self._initialized = True
-                logger.info("Advanced SQL engine initialized with OpenAI fallback")
-                return True
-            else:
-                # Simple fallback without any AI
-                self.model = "simple-fallback"
-                self.chat_session = None
-                self._initialized = True
-                logger.info("Advanced SQL engine initialized with simple fallback mode")
-                return True
-            
+            validate_gemini_config()
+
+            genai.configure(api_key=GEMINI_CONFIG['api_key'])
+
+            self.model = genai.GenerativeModel(
+                model_name=GEMINI_CONFIG['model'],
+                generation_config=STRUCTURED_GENERATION_CONFIG,
+                safety_settings=SAFETY_SETTINGS
+            )
+
+            self._initialized = True
+            logger.info(f"Optimized SQL engine initialized with model: {GEMINI_CONFIG['model']}")
+            return True
+
         except Exception as e:
             logger.error(f"Failed to initialize SQL engine: {str(e)}")
-            # Always fallback to simple mode
-            self.model = "simple-fallback"
-            self.chat_session = None
-            self._initialized = True
-            logger.info("Advanced SQL engine initialized with simple fallback mode due to error")
-            return True
-    
-
-    def _get_function_tools(self) -> List[Dict[str, Any]]:
-        """Define function calling tools for structured SQL generation."""
-        return [
-            {
-                "name": "analyze_query_intent",
-                "description": "Analyze user query to understand intent and requirements",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "user_query": {"type": "string", "description": "User's natural language query"},
-                        "intent": {"type": "string", "enum": ["select_data", "count_records", "aggregate_data", "join_tables", "filter_data", "sort_data", "schema_info"]},
-                        "complexity": {"type": "string", "enum": ["simple", "moderate", "complex", "advanced"]},
-                        "tables_needed": {"type": "array", "items": {"type": "string"}},
-                        "columns_needed": {"type": "array", "items": {"type": "string"}},
-                        "conditions": {"type": "array", "items": {"type": "string"}},
-                        "confidence": {"type": "number", "minimum": 0, "maximum": 1}
-                    },
-                    "required": ["user_query", "intent", "complexity", "confidence"]
-                }
-            },
-            {
-                "name": "generate_sql_structure",
-                "description": "Generate structured SQL query based on analysis",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "sql_query": {"type": "string", "description": "Generated SQL query"},
-                        "query_type": {"type": "string", "description": "Type of SQL operation"},
-                        "tables_used": {"type": "array", "items": {"type": "string"}},
-                        "explanation": {"type": "string", "description": "Explanation of the query logic"},
-                        "confidence": {"type": "number", "minimum": 0, "maximum": 1}
-                    },
-                    "required": ["sql_query", "query_type", "explanation", "confidence"]
-                }
-            },
-            {
-                "name": "validate_sql_query",
-                "description": "Validate SQL query structure and logic",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "is_valid": {"type": "boolean"},
-                        "issues": {"type": "array", "items": {"type": "string"}},
-                        "suggestions": {"type": "array", "items": {"type": "string"}},
-                        "optimizations": {"type": "array", "items": {"type": "string"}}
-                    },
-                    "required": ["is_valid"]
-                }
-            }
-        ]
-
-    def analyze_user_intent(self, user_question: str, schema_context: str) -> QueryAnalysis:
-        """
-        Advanced intent analysis using pattern matching and NLP.
-        """
-        # Pattern-based intent detection
-        intent = QueryIntent.UNKNOWN
-        confidence = 0.5
-        
-        user_lower = user_question.lower()
-        
-        # Intent classification
-        if re.search(self.query_patterns["count"], user_lower):
-            intent = QueryIntent.COUNT_RECORDS
-            confidence = 0.8
-        elif re.search(self.query_patterns["list"], user_lower):
-            intent = QueryIntent.SELECT_DATA
-            confidence = 0.7
-        elif any(word in user_lower for word in ["sum", "average", "total", "max", "min"]):
-            intent = QueryIntent.AGGREGATE_DATA
-            confidence = 0.8
-        elif "join" in user_lower or " and " in user_lower:
-            intent = QueryIntent.JOIN_TABLES
-            confidence = 0.6
-        
-        # Extract table and column mentions from schema
-        tables_mentioned = self._extract_tables_from_query(user_question, schema_context)
-        columns_mentioned = self._extract_columns_from_query(user_question, schema_context)
-        
-        # Determine complexity
-        complexity = QueryComplexity.SIMPLE
-        if len(tables_mentioned) > 1:
-            complexity = QueryComplexity.MODERATE
-        if any(word in user_lower for word in ["subquery", "nested", "window", "cte"]):
-            complexity = QueryComplexity.COMPLEX
-        
-        return QueryAnalysis(
-            intent=intent,
-            complexity=complexity,
-            tables_mentioned=tables_mentioned,
-            columns_mentioned=columns_mentioned,
-            conditions=self._extract_conditions(user_question),
-            aggregations=self._extract_aggregations(user_question),
-            confidence_score=confidence,
-            reasoning=f"Detected {intent.value} intent with {confidence:.1%} confidence"
-        )
+            self._initialized = False
+            return False
 
     def generate_sql_query(
         self,
@@ -295,994 +95,367 @@ class AdvancedSQLEngine:
         additional_context: Optional[str] = None
     ) -> GenerationResponse:
         """
-        Advanced SQL query generation using structured, minimal context and ChromaDB semantic enrichment.
-        Args:
-            user_question: User's natural language question
-            schema_context: Database schema information
-            additional_context: Optional additional context
-        Returns:
-            GenerationResponse with generated SQL query and analysis
+        Generate SQL query using optimized direct text generation.
         """
         if not self._initialized:
             self.initialize()
 
-        # --- ChromaDB integration for semantic context ---
-        try:
-            from src.ai.chromadb_integration import ChatbotContextManager
-            context_manager = ChatbotContextManager()
-            chroma_context = context_manager.enrich_query_with_context(user_question)
-        except Exception as chroma_exc:
-            logger.warning(f"ChromaDB context enrichment failed: {chroma_exc}")
-            chroma_context = {}
-
         start_time = time.time()
 
         try:
-            # Step 1: Analyze user intent using advanced techniques
-            analysis = self.analyze_user_intent(user_question, schema_context)
+            # Check cache first
+            cache_key = f"{user_question}_{hash(schema_context)}"
+            if cache_key in self.query_cache:
+                cached_result = self.query_cache[cache_key]
+                return GenerationResponse(
+                    success=True,
+                    sql_query=cached_result,
+                    explanation=cached_result.explanation,
+                    generation_time=0.0,
+                    usage_metadata={'cached': True}
+                )
 
-            # Step 2: Prepare minimal structured context for LLM
-            llm_payload = {
-                "q": user_question,
-                "i": analysis.intent.value,
-                "c": analysis.complexity.value,
-                "t": analysis.tables_mentioned[:2],  # limit to 2 tables
-                "col": analysis.columns_mentioned[:4],  # limit to 4 columns
-                "cond": analysis.conditions[:2],  # limit to 2 conditions
-                "agg": analysis.aggregations[:1],  # limit to 1 aggregation
-                "semantic_context": chroma_context.get("similar_queries", []),
-                "semantic_metadata": chroma_context.get("similar_metadata", []),
-            }
-            if additional_context:
-                llm_payload["ctx"] = additional_context
+            # Prepare optimized prompt
+            prompt = self._build_optimized_prompt(user_question, schema_context, additional_context)
 
-            # Step 3: Generate using function calling approach (structured payload)
-            response = self._generate_with_advanced_reasoning(llm_payload)
+            # Generate response
+            response = self._generate_with_retry(prompt)
 
-            # Step 4: Process and validate the response
-            sql_result = self._process_advanced_response(response, analysis)
+            # Process response
+            sql_result = self._process_response(response, user_question)
 
-            # Step 5: Apply post-processing and validation
-            if sql_result.sql and sql_result.sql.strip():
-                sql_result = self._validate_and_optimize_query(sql_result)
+            # Cache result
+            if sql_result and sql_result.is_valid:
+                self.query_cache[cache_key] = sql_result
 
             generation_time = time.time() - start_time
-
-            # Update metrics
             self.request_count += 1
 
-            # Log advanced metrics
+            # Update token usage
+            if hasattr(response, 'usage_metadata') and response.usage_metadata:
+                tokens_used = getattr(response.usage_metadata, 'total_token_count', 0)
+                self.total_tokens_used += tokens_used
+
             logger.info(
-                f"Advanced SQL query generated in {generation_time:.2f}s - "
-                f"Intent: {analysis.intent.value}, Complexity: {analysis.complexity.value}, "
-                f"Confidence: {analysis.confidence_score:.2f}, Tables: {len(analysis.tables_mentioned)}"
+                f"SQL query generated in {generation_time:.2f}s - "
+                f"Confidence: {sql_result.confidence_score:.2f}, Tokens: {tokens_used}"
             )
 
-            # Add to conversation history with analysis
-            self._add_to_history("user", user_question)
-            self._add_to_history("model", f"Query: {sql_result.sql}\nExplanation: {sql_result.explanation}")
-
-            # Create enhanced response object
             return GenerationResponse(
                 success=True,
                 sql_query=sql_result,
                 explanation=sql_result.explanation,
-                query_analysis=analysis,
                 generation_time=generation_time,
                 usage_metadata=getattr(response, 'usage_metadata', {})
             )
 
         except Exception as e:
-            logger.error(f"Advanced SQL generation failed: {str(e)}")
+            logger.error(f"SQL generation failed: {str(e)}")
             return GenerationResponse(
                 success=False,
                 error_message=f"SQL generation error: {str(e)}",
-                sql_query=None,
-                explanation="Failed to generate SQL query due to processing error",
-                query_analysis=None,
-                generation_time=time.time() - start_time,
-                usage_metadata={'total_token_count': 0}
+                generation_time=time.time() - start_time
             )
-    
-    def explain_query(self, query: str, schema_context: str) -> GenerationResponse:
-        """
-        Explain an SQL query in natural language using structured payloads.
-        """
-        if not self._initialized:
-            self.initialize()
-        try:
-            payload = {
-                "action": "explain_query",
-                "query": query,
-                "schema_context": schema_context
-            }
-            response = self._generate_with_advanced_reasoning(payload)
-            self._add_to_history("user", f"Explain this query: {query}")
-            self._add_to_history("model", getattr(response, 'explanation', str(response)))
-            return GenerationResponse(
-                explanation=getattr(response, 'text', str(response)),
-                usage_metadata=getattr(response, 'usage_metadata', None),
-                safety_ratings=getattr(response, 'safety_ratings', None),
-                finish_reason=getattr(response, 'finish_reason', None)
-            )
-        except Exception as e:
-            logger.error(f"Query explanation failed: {str(e)}")
-            return GenerationResponse(success=False, error_message=str(e))
-    
-    def analyze_error(
-        self,
-        error_message: str,
-        query: str,
-        schema_context: str
-    ) -> GenerationResponse:
-        """
-        Analyze database error and provide solution using structured payloads.
-        """
-        if not self._initialized:
-            self.initialize()
-        try:
-            payload = {
-                "action": "analyze_error",
-                "error_message": error_message,
-                "query": query,
-                "schema_context": schema_context
-            }
-            response = self._generate_with_advanced_reasoning(payload)
-            self._add_to_history("user", f"Error: {error_message}")
-            self._add_to_history("model", getattr(response, 'explanation', str(response)))
-            return GenerationResponse(
-                explanation=getattr(response, 'text', str(response)),
-                usage_metadata=getattr(response, 'usage_metadata', None),
-                safety_ratings=getattr(response, 'safety_ratings', None),
-                finish_reason=getattr(response, 'finish_reason', None)
-            )
-        except Exception as e:
-            logger.error(f"Error analysis failed: {str(e)}")
-            return GenerationResponse(success=False, error_message=str(e))
-    
-    def summarize_schema(self, schema_info: str) -> GenerationResponse:
-        """
-        Generate user-friendly summary of database schema using structured payloads.
-        """
-        if not self._initialized:
-            self.initialize()
-        try:
-            payload = {
-                "action": "summarize_schema",
-                "schema_info": schema_info
-            }
-            response = self._generate_with_advanced_reasoning(payload)
-            return GenerationResponse(
-                explanation=getattr(response, 'text', str(response)),
-                usage_metadata=getattr(response, 'usage_metadata', None),
-                safety_ratings=getattr(response, 'safety_ratings', None),
-                finish_reason=getattr(response, 'finish_reason', None)
-            )
-        except Exception as e:
-            logger.error(f"Schema summarization failed: {str(e)}")
-            return GenerationResponse(success=False, error_message=str(e))
-    
-    def chat_with_context(
-        self, 
-        message: str, 
-        context: Optional[Dict[str, Any]] = None
-    ) -> GenerationResponse:
-        """
-        Continue conversation with additional context.
-        
-        Args:
-            message: User message
-            context: Optional context information
-            
-        Returns:
-            GenerationResponse with model's response
-        """
-        if not self._initialized:
-            self.initialize()
-        
-        try:
-            # Add context if provided
-            if context:
-                context_str = "\n".join([f"{k}: {v}" for k, v in context.items()])
-                full_message = f"{message}\n\nContext:\n{context_str}"
-            else:
-                full_message = message
-            
-            response = self._generate_with_retry(full_message)
-            
-            # Add to conversation history
-            self._add_to_history("user", message)
-            self._add_to_history("model", response.explanation)
-            
-            return response
-            
-        except Exception as e:
-            logger.error(f"Chat generation failed: {str(e)}")
-            raise
-    
-    def _generate_with_retry(
-        self, 
-        prompt: str, 
-        max_retries: int = 3, 
-        base_delay: float = 1.0
-    ) -> GenerationResponse:
-        """
-        Generate response with exponential backoff retry logic.
-        
-        Args:
-            prompt: Input prompt
-            max_retries: Maximum number of retries
-            base_delay: Base delay for exponential backoff
-            
-        Returns:
-            GenerationResponse
-        """
+
+    def _build_optimized_prompt(self, question: str, schema_context: str, additional_context: Optional[str] = None) -> str:
+        """Build optimized prompt for SQL generation."""
+        # Extract key schema information
+        schema_summary = self._extract_schema_summary(schema_context)
+
+        prompt_parts = [
+            "You are an expert SQL assistant for SailPoint IdentityIQ databases.",
+            "",
+            "CRITICAL RULES:",
+            "1. ONLY generate SELECT, SHOW, DESCRIBE, or EXPLAIN queries",
+            "2. NEVER generate INSERT, UPDATE, DELETE, DROP, or any data modification",
+            "3. Always use proper MySQL syntax",
+            "4. Include LIMIT 100 for safety",
+            "5. Use table aliases for readability",
+            "",
+            "DATABASE SCHEMA:",
+            schema_summary,
+            "",
+            f"USER QUESTION: {question}",
+        ]
+
+        if additional_context:
+            prompt_parts.extend([
+                "",
+                "ADDITIONAL CONTEXT:",
+                additional_context
+            ])
+
+        prompt_parts.extend([
+            "",
+            "OUTPUT FORMAT:",
+            "Respond with a valid JSON object containing:",
+            "- sql: The SQL query string",
+            "- explanation: Explanation of what the query does",
+            "- confidence: Confidence score (0.0 to 1.0)",
+            "- query_type: Type of query (SELECT, SHOW, DESCRIBE, EXPLAIN)",
+            "- tables_used: Array of table names used",
+            "- is_valid: Boolean indicating if SQL is valid",
+            "",
+            "Example:",
+            '{"sql": "SELECT * FROM users LIMIT 100;", "explanation": "Retrieves all user records", "confidence": 0.9, "query_type": "SELECT", "tables_used": ["users"], "is_valid": true}',
+            "",
+            "Do not include any text outside the JSON object."
+        ])
+
+        return "\n".join(prompt_parts)
+
+    def _extract_schema_summary(self, schema_context: str) -> str:
+        """Extract key schema information for the prompt."""
+        lines = schema_context.split('\n')
+        summary_lines = []
+
+        # Extract table definitions
+        in_tables_section = False
+        for line in lines:
+            if 'TABLE:' in line:
+                in_tables_section = True
+                summary_lines.append(line)
+            elif in_tables_section and line.strip().startswith('-'):
+                summary_lines.append(line)
+            elif line.strip() == '' and in_tables_section:
+                # Stop after first table section to keep prompt concise
+                break
+
+        # If no structured tables found, use first 20 lines
+        if not summary_lines:
+            summary_lines = lines[:20]
+
+        return '\n'.join(summary_lines)
+
+    def _generate_with_retry(self, prompt: str, max_retries: int = 3) -> Any:
+        """Generate response with exponential backoff."""
         last_exception = None
-        
+
         for attempt in range(max_retries + 1):
             try:
-                if self.chat_session:
-                    response = self.chat_session.send_message(prompt)
-                else:
-                    response = self.model.generate_content(prompt)
-                
-                # Update token usage if available
-                if hasattr(response, 'usage_metadata') and response.usage_metadata:
-                    self.total_tokens_used += getattr(response.usage_metadata, 'total_token_count', 0)
-                
-                return GenerationResponse(
-                    explanation=response.text,
-                    usage_metadata=getattr(response, 'usage_metadata', None),
-                    safety_ratings=getattr(response, 'safety_ratings', None),
-                    finish_reason=getattr(response, 'finish_reason', None)
-                )
-                
+                response = self.model.generate_content(prompt)
+
+                # Check for safety issues
+                if hasattr(response, 'safety_ratings'):
+                    for rating in response.safety_ratings:
+                        if rating.get('blocked', False):
+                            raise ValueError("Response blocked by safety filters")
+
+                return response
+
             except google_exceptions.ResourceExhausted as e:
                 logger.warning(f"Rate limit exceeded (attempt {attempt + 1})")
                 last_exception = e
                 if attempt < max_retries:
-                    delay = base_delay * (2 ** attempt)
+                    delay = 1 * (2 ** attempt)
                     time.sleep(delay)
                     continue
-                    
-            except google_exceptions.InvalidArgument as e:
-                logger.error(f"Invalid argument: {str(e)}")
-                raise ValueError(f"Invalid request: {str(e)}")
-                
-            except google_exceptions.PermissionDenied as e:
-                logger.error(f"Permission denied: {str(e)}")
-                raise PermissionError(f"API access denied: {str(e)}")
-                
+
             except Exception as e:
                 logger.warning(f"Generation attempt {attempt + 1} failed: {str(e)}")
                 last_exception = e
                 if attempt < max_retries:
-                    delay = base_delay * (2 ** attempt)
+                    delay = 1 * (2 ** attempt)
                     time.sleep(delay)
                     continue
-        
-        # All retries exhausted
+
         raise RuntimeError(f"Generation failed after {max_retries + 1} attempts: {str(last_exception)}")
-    
-    def _add_to_history(self, role: str, content: str):
-        """Add message to conversation history."""
-        message = ChatMessage(
-            role=role,
-            content=content,
-            timestamp=time.time()
-        )
-        self.conversation_history.append(message)
-        
-        # Keep history manageable (last 50 messages)
-        if len(self.conversation_history) > 50:
-            self.conversation_history = self.conversation_history[-50:]
-    
-    def get_conversation_history(self) -> List[Dict[str, Any]]:
-        """Get conversation history as list of dictionaries."""
-        return [
-            {
-                "role": msg.role,
-                "content": msg.content,
-                "timestamp": msg.timestamp,
-                "metadata": msg.metadata
-            }
-            for msg in self.conversation_history
-        ]
-    
-    def clear_conversation(self):
-        """Clear conversation history and start fresh chat session."""
-        self.conversation_history.clear()
-        if self.model:
-            self.chat_session = self.model.start_chat(history=[])
-        logger.info("Conversation history cleared")
-    
-    def get_usage_stats(self) -> Dict[str, Any]:
-        """Get API usage statistics."""
-        return {
-            "total_requests": self.request_count,
-            "total_tokens_used": self.total_tokens_used,
-            "conversation_length": len(self.conversation_history),
-            "model": GEMINI_CONFIG['model'],
-            "initialized": self._initialized
-        }
-    
-    def export_conversation(self, format: str = 'json') -> str:
-        """Export conversation history."""
-        if format == 'json':
-            return json.dumps(self.get_conversation_history(), indent=2)
-        else:
-            raise ValueError(f"Unsupported export format: {format}")
 
-# Global Gemini client instance
-# Helper methods for advanced SQL engine
-    def _extract_tables_from_query(self, question: str, schema_context: str) -> List[str]:
-        """Extract potential IdentityIQ table names from the question and schema."""
-        tables = []
-        question_lower = question.lower()
-        
-        # IdentityIQ business term to table mapping
-        term_to_table = {
-            'user': 'spt_identity',
-            'users': 'spt_identity', 
-            'identity': 'spt_identity',
-            'identities': 'spt_identity',
-            'people': 'spt_identity',
-            'person': 'spt_identity',
-            'employee': 'spt_identity',
-            'employees': 'spt_identity',
-            
-            'application': 'spt_application',
-            'applications': 'spt_application',
-            'app': 'spt_application',
-            'apps': 'spt_application',
-            'system': 'spt_application',
-            'systems': 'spt_application',
-            
-            'account': 'spt_link',
-            'accounts': 'spt_link',
-            'link': 'spt_link',
-            'links': 'spt_link',
-            
-            'role': 'spt_bundle',
-            'roles': 'spt_bundle',
-            'bundle': 'spt_bundle',
-            'bundles': 'spt_bundle',
-            'access': 'spt_bundle',
-            'permission': 'spt_entitlement',
-            'permissions': 'spt_entitlement',
-            'entitlement': 'spt_entitlement',
-            'entitlements': 'spt_entitlement',
-            
-            'workflow': 'spt_workflow',
-            'workflows': 'spt_workflow',
-            'process': 'spt_workflow',
-            'case': 'spt_workflow_case',
-            'cases': 'spt_workflow_case',
-            
-            'certification': 'spt_certification',
-            'certifications': 'spt_certification',
-            'review': 'spt_certification',
-            'reviews': 'spt_certification',
-            
-            'audit': 'spt_audit_event',
-            'activity': 'spt_audit_event',
-            'activities': 'spt_audit_event',
-            'event': 'spt_audit_event',
-            'events': 'spt_audit_event',
-            'log': 'spt_audit_event',
-            'logs': 'spt_audit_event',
-            
-            'request': 'spt_request',
-            'requests': 'spt_request',
-            'task': 'spt_task_result',
-            'tasks': 'spt_task_result',
-            'policy': 'spt_policy',
-            'policies': 'spt_policy',
-            'violation': 'spt_policy_violation',
-            'violations': 'spt_policy_violation'
-        }
-        
-        # Find matching tables based on business terms
-        for term, table in term_to_table.items():
-            if term in question_lower:
-                tables.append(table)
-        
-        # Also extract direct table references from schema context
-        for line in schema_context.split('\n'):
-            if '• spt_' in line:
-                table_name = line.split(':')[0].replace('•', '').strip()
-                if table_name.lower() in question_lower:
-                    tables.append(table_name)
-        
-        return list(set(tables))  # Remove duplicates
-    
-    def _extract_columns_from_query(self, question: str, schema_context: str) -> List[str]:
-        """Extract potential IdentityIQ column names from the question."""
-        columns = []
-        question_lower = question.lower()
-        
-        # IdentityIQ common column mappings
-        column_terms = {
-            'name': 'name',
-            'names': 'name',
-            'title': 'display_name',
-            'email': 'email',
-            'status': 'status',
-            'type': 'type',
-            'created': 'created',
-            'modified': 'modified',
-            'date': 'created',
-            'time': 'created',
-            'when': 'created',
-            'id': 'id',
-            'description': 'description',
-            'owner': 'owner',
-            'manager': 'manager',
-            'department': 'department',
-            'location': 'location',
-            'cost_center': 'cost_center',
-            'job_title': 'job_title',
-            'first_name': 'firstname',
-            'last_name': 'lastname',
-            'username': 'name',
-            'login': 'name',
-            'employee_id': 'employee_number',
-            'enabled': 'status',
-            'active': 'status',
-            'disabled': 'status',
-            'inactive': 'status'
-        }
-        
-        # Find matching columns based on terms
-        for term, column in column_terms.items():
-            if term in question_lower:
-                columns.append(column)
-        
-        # Extract specific columns mentioned in schema
-        for line in schema_context.split('\n'):
-            if '    - ' in line and '(' in line:
-                # Extract column name from format: "    - column_name (type)"
-                column_part = line.strip().split('-', 1)[1].split('(')[0].strip()
-                if column_part.lower() in question_lower:
-                    columns.append(column_part)
-        
-        return list(set(columns))[:8]  # Remove duplicates, limit to 8
-    
-    def _extract_conditions(self, question: str) -> List[str]:
-        """Extract filter conditions from the question."""
-        conditions = []
-        question_lower = question.lower()
-        
-        # Look for common filter patterns
-        condition_patterns = [
-            r'where\s+(\w+)\s*[=<>]',
-            r'(\w+)\s*[=<>]\s*[\'"]?(\w+)[\'"]?',
-            r'greater than\s+(\d+)',
-            r'less than\s+(\d+)',
-            r'equal to\s+[\'"]?(\w+)[\'"]?'
-        ]
-        
-        for pattern in condition_patterns:
-            matches = re.findall(pattern, question_lower)
-            conditions.extend([str(match) for match in matches])
-        
-        return conditions[:3]  # Limit to 3 conditions
-    
-    def _extract_aggregations(self, question: str) -> List[str]:
-        """Extract aggregation functions from the question."""
-        aggregations = []
-        question_lower = question.lower()
-        
-        agg_keywords = ['count', 'sum', 'average', 'avg', 'max', 'min', 'total']
-        for keyword in agg_keywords:
-            if keyword in question_lower:
-                aggregations.append(keyword.upper())
-        
-        return list(set(aggregations))  # Remove duplicates
-
-
-    def _generate_with_advanced_reasoning(self, llm_payload: dict):
-        """Generate response using advanced reasoning with the LLM using structured payload."""
+    def _process_response(self, response, user_question: str) -> SQLQuery:
+        """Process Gemini JSON response into SQL query."""
         try:
-            if GEMINI_AVAILABLE and hasattr(self, 'chat_session') and self.chat_session:
-                # Use the chat session for continuity, send structured payload
-                response = self.chat_session.send_message(json.dumps(llm_payload))
-                return response
-            else:
-                # Fallback mode - return a simple mock response
-                return self._generate_fallback_response(llm_payload)
-        except Exception as e:
-            logger.error(f"Advanced generation failed: {str(e)}")
-            # Always fallback to simple response
-            return self._generate_fallback_response(llm_payload)
-
-    def _generate_fallback_response(self, llm_payload: dict):
-        """Provide basic SQL generation when AI is unavailable."""
-        try:
-            user_question = llm_payload.get('q', '').lower()
-            
-            # Enhanced pattern-based SQL generation
-            if 'count' in user_question and ('user' in user_question or 'application' in user_question):
-                sql = "SELECT COUNT(*) FROM spt_link"
-                explanation = "Generated basic count query for user-application relationships."
-            elif 'list' in user_question and 'application' in user_question:
-                sql = "SELECT name FROM spt_application LIMIT 10"
-                explanation = "Generated basic list query for applications."
-            elif 'show' in user_question and 'user' in user_question:
-                sql = "SELECT name, email FROM spt_identity LIMIT 10"
-                explanation = "Generated basic list query for users."
-            elif ('top' in user_question or 'most' in user_question or 'highest' in user_question) and 'customer' in user_question:
-                # Try to generate a top customers query based on schema
-                sql = """
-                SELECT 
-                    i.name as customer_name,
-                    COUNT(l.id) as total_accounts,
-                    COUNT(DISTINCT a.id) as applications_count
-                FROM spt_identity i
-                LEFT JOIN spt_link l ON i.id = l.identity_id
-                LEFT JOIN spt_application a ON l.application_id = a.id
-                WHERE i.type = 'user'
-                GROUP BY i.id, i.name
-                ORDER BY total_accounts DESC
-                LIMIT 10
-                """
-                explanation = "Generated query to show top 10 customers by number of accounts."
-            elif ('top' in user_question or 'most' in user_question) and ('application' in user_question or 'app' in user_question):
-                sql = """
-                SELECT 
-                    a.name as application_name,
-                    COUNT(l.id) as user_count
-                FROM spt_application a
-                LEFT JOIN spt_link l ON a.id = l.application_id
-                GROUP BY a.id, a.name
-                ORDER BY user_count DESC
-                LIMIT 10
-                """
-                explanation = "Generated query to show top 10 applications by user count."
-            elif 'sales' in user_question or 'revenue' in user_question:
-                # Look for sales-related tables in schema
-                sql = "SELECT 'Sales data query - please specify which sales metrics to analyze' as message"
-                explanation = "Sales query detected but specific sales table/column not found in schema."
-            elif 'role' in user_question or 'roles' in user_question:
-                sql = "SELECT name, description FROM spt_bundle WHERE type = 'role' LIMIT 10"
-                explanation = "Generated query to show roles."
-            elif 'certification' in user_question:
-                sql = "SELECT name, status FROM spt_certification LIMIT 10"
-                explanation = "Generated query to show certifications."
-            else:
-                sql = "SELECT 'Unable to generate SQL query - please rephrase your question' as message"
-                explanation = "Could not determine the appropriate query type from your question."
-            
-            # Create a mock response object
-            class MockResponse:
-                def __init__(self, text):
-                    self.text = text
-            
-            return MockResponse(f"```sql\n{sql}\n```\n\n{explanation}")
-            
-        except Exception as e:
-            logger.error(f"Fallback SQL generation failed: {str(e)}")
-            # Return a safe default
-            class MockResponse:
-                def __init__(self, text):
-                    self.text = text
-            return MockResponse("```sql\nSELECT 'SQL generation failed - please check your configuration' as error\n```\n\nUnable to generate SQL query due to processing error.")
-
-    def _process_advanced_response(self, response, analysis: QueryAnalysis) -> SQLQuery:
-        """Process LLM response into structured SQL query object and enforce allowed operations."""
-        try:
+            # Parse JSON response
             response_text = response.text if hasattr(response, 'text') else str(response)
+            response_data = json.loads(response_text)
 
-            # Extract SQL query using improved parsing
-            sql_query = self._extract_sql_from_response(response_text)
+            # Extract fields
+            sql_query = response_data.get('sql', '')
+            explanation = response_data.get('explanation', 'Query generated successfully.')
+            confidence = response_data.get('confidence', 0.5)
+            query_type = response_data.get('query_type', 'UNKNOWN')
+            tables_used = response_data.get('tables_used', [])
+            is_valid = response_data.get('is_valid', True)
 
-            # Enforce allowed operations and handle empty query
-            allowed_ops = {"SELECT", "SHOW", "DESCRIBE", "EXPLAIN", "WITH"}
-            sql_query_stripped = sql_query.strip()
-            
-            # Extract first word, skipping comments and empty lines
-            first_word = ""
-            for line in sql_query_stripped.splitlines():
-                line = line.strip()
-                if not line or line.startswith("--") or line.startswith("/*"):
-                    continue
-                # Split the line and get the first non-empty token
-                tokens = line.split()
-                if tokens:
-                    first_word = tokens[0].upper()
-                    break
-            
-            # Handle case where no valid first word is found
-            if not first_word:
-                explanation = self._extract_explanation_from_response(response_text)
-                return SQLQuery(
-                    sql="-- Query blocked: No valid SQL operation found.",
-                    explanation=(
-                        "Query blocked: No valid SQL operation found in the generated query.\n"
-                        "Please rephrase your question or provide more details.\n"
-                        f"Generated query: {sql_query[:200]}...\n"
-                        f"Explanation: {explanation}"
-                    ),
-                    confidence_score=0.0,
-                    query_type="blocked",
-                    tables_used=[],
-                    columns_used=[],
-                    is_valid=False,
-                    potential_issues=["No valid SQL operation found"],
-                    optimization_suggestions=[]
-                )
-            
-            if first_word not in allowed_ops:
-                explanation = self._extract_explanation_from_response(response_text)
-                return SQLQuery(
-                    sql=f"-- Query blocked: Only {', '.join(sorted(allowed_ops))} operations are allowed.",
-                    explanation=(
-                        f"Query blocked: Operation '{first_word}' not allowed. Allowed operations: {', '.join(sorted(allowed_ops))}.\n"
-                        f"Original query: {sql_query[:200]}...\n"
-                        f"Explanation: {explanation}"
-                    ),
-                    confidence_score=0.0,
-                    query_type="blocked",
-                    tables_used=[],
-                    columns_used=[],
-                    is_valid=False,
-                    potential_issues=[f"Blocked operation: {first_word}"],
-                    optimization_suggestions=[]
-                )
+            # Validate and clean SQL
+            sql_query, is_valid = self._validate_and_clean_sql(sql_query)
 
-            # Extract explanation
-            explanation = self._extract_explanation_from_response(response_text)
+            # If confidence not provided, calculate it
+            if 'confidence' not in response_data:
+                confidence = self._calculate_confidence(sql_query, user_question, explanation)
 
-            # Determine confidence based on query quality
-            confidence = self._calculate_query_confidence(sql_query, analysis)
+            # If query_type not provided, identify it
+            if 'query_type' not in response_data:
+                query_type = self._identify_query_type(sql_query)
 
-            # Identify query type
-            query_type = self._identify_query_type(sql_query)
-
-            # Extract tables used
-            tables_used = self._extract_tables_from_sql(sql_query)
+            # If tables_used not provided, extract from SQL
+            if not tables_used:
+                tables_used = self._extract_tables_from_sql(sql_query)
 
             return SQLQuery(
                 sql=sql_query,
-                explanation=explanation,
-                confidence_score=confidence,
                 query_type=query_type,
                 tables_used=tables_used,
                 columns_used=[],
-                is_valid=True,
+                is_valid=is_valid,
+                confidence_score=confidence,
+                explanation=explanation,
                 potential_issues=[],
                 optimization_suggestions=[]
             )
 
-        except Exception as e:
-            logger.error(f"Response processing error: {str(e)}")
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON parsing error: {str(e)} - Response: {response_text}")
             return SQLQuery(
-                sql="-- Error processing response",
-                explanation=f"Failed to process LLM response: {str(e)}",
-                confidence_score=0.0,
+                sql="SELECT 'Error: Invalid JSON response' as message",
                 query_type="error",
                 tables_used=[],
                 columns_used=[],
                 is_valid=False,
+                confidence_score=0.0,
+                explanation=f"Failed to parse JSON response: {str(e)}",
+                potential_issues=[str(e)],
+                optimization_suggestions=[]
+            )
+        except Exception as e:
+            logger.error(f"Response processing error: {str(e)}")
+            return SQLQuery(
+                sql="SELECT 'Error processing response' as message",
+                query_type="error",
+                tables_used=[],
+                columns_used=[],
+                is_valid=False,
+                confidence_score=0.0,
+                explanation=f"Failed to process response: {str(e)}",
                 potential_issues=[str(e)],
                 optimization_suggestions=[]
             )
 
     def _extract_sql_from_response(self, response_text: str) -> str:
-        """Extract SQL query from LLM response using improved patterns."""
-        if not response_text or not response_text.strip():
-            return ""
-        
-        # Look for SQL code blocks and SELECT statements
+        """Extract SQL query from response."""
+        # Look for SQL code blocks
         sql_patterns = [
             r'```sql\s*(.*?)\s*```',
             r'```\s*(SELECT.*?;?)\s*```',
-            r'```\s*(INSERT.*?;?)\s*```',
-            r'```\s*(UPDATE.*?;?)\s*```',
-            r'```\s*(DELETE.*?;?)\s*```',
-            r'```\s*(SHOW.*?;?)\s*```',
-            r'```\s*(DESCRIBE.*?;?)\s*```',
-            r'```\s*(EXPLAIN.*?;?)\s*```',
-            r'```\s*(WITH.*?;?)\s*```',
             r'(SELECT\s+.*?;)',
             r'(SELECT\s+.*?\n)',
-            r'(SELECT\s+.*?\Z)',
-            r'(SHOW\s+.*?;)',
-            r'(DESCRIBE\s+.*?;)',
-            r'(EXPLAIN\s+.*?;)',
         ]
-        
+
         for pattern in sql_patterns:
             matches = re.findall(pattern, response_text, re.DOTALL | re.IGNORECASE)
             for match in matches:
                 sql = match.strip()
-                # Remove code block markers
-                sql = re.sub(r'^```sql', '', sql, flags=re.IGNORECASE).strip()
-                sql = re.sub(r'^```', '', sql).strip()
-                sql = re.sub(r'```$', '', sql).strip()
-                # Remove trailing semicolons
-                sql = sql.rstrip(';').strip()
-                # Only return if it starts with allowed operation
-                allowed_starts = ("SELECT", "SHOW", "DESCRIBE", "EXPLAIN", "WITH")
-                if sql and any(sql.upper().startswith(op) for op in allowed_starts):
+                if sql and self._is_valid_sql_start(sql):
                     return sql
-        
-        # Fallback: scan for first line starting with allowed operation
-        allowed_ops = ("SELECT", "SHOW", "DESCRIBE", "EXPLAIN", "WITH")
-        for line in response_text.splitlines():
+
+        # Fallback: look for any line starting with SELECT
+        for line in response_text.split('\n'):
             line = line.strip()
-            if line and any(line.upper().startswith(op) for op in allowed_ops):
-                # Clean up the line
-                sql = line.rstrip(';').strip()
-                return sql
-        
-        # Last resort: look for any line containing SQL keywords
-        for line in response_text.splitlines():
-            line_upper = line.upper().strip()
-            if any(keyword in line_upper for keyword in ["SELECT", "SHOW", "DESCRIBE", "EXPLAIN", "FROM", "WHERE"]):
-                # Try to extract a complete SQL statement
-                sql = line.strip()
-                # Look for semicolon or end of statement
-                if ';' in sql:
-                    sql = sql.split(';')[0] + ';'
-                return sql
-        
-        # If no patterns match, return empty string to indicate failure
+            if line.upper().startswith('SELECT'):
+                return line
+
         return ""
 
-    def _extract_explanation_from_response(self, response_text: str) -> str:
-        """Extract explanation from LLM response."""
-        # Look for explanation patterns
-        explanation_patterns = [
-            r'(?:Explanation|EXPLANATION):\s*(.*?)(?:\n\n|$)',
-            r'(?:This query|The query)\s+(.*?)(?:\n\n|$)',
-            r'(?:Analysis|ANALYSIS):\s*(.*?)(?:\n\n|$)'
-        ]
-        
-        for pattern in explanation_patterns:
-            matches = re.findall(pattern, response_text, re.DOTALL | re.IGNORECASE)
-            if matches:
-                return matches[0].strip()
-        
-        # Fallback: use the text after the SQL query
-        lines = response_text.split('\n')
-        in_explanation = False
-        explanation_lines = []
-        
-        for line in lines:
-            line = line.strip()
-            if not line:
-                continue
-            
-            # Skip SQL code blocks
-            if line.startswith('```') or re.match(r'^(SELECT|INSERT|UPDATE|DELETE)', line, re.IGNORECASE):
-                in_explanation = False
-                continue
-            
-            # Look for explanation markers
-            if any(marker in line.lower() for marker in ['explanation', 'this query', 'analysis']):
-                in_explanation = True
-                explanation_lines.append(line)
-                continue
-            
-            if in_explanation:
-                explanation_lines.append(line)
-        
-        return ' '.join(explanation_lines) if explanation_lines else "Query generated successfully"
+    def _is_valid_sql_start(self, sql: str) -> bool:
+        """Check if SQL starts with allowed operation."""
+        allowed_starts = ('SELECT', 'SHOW', 'DESCRIBE', 'EXPLAIN')
+        return any(sql.upper().strip().startswith(op) for op in allowed_starts)
 
-    def _calculate_query_confidence(self, sql_query: str, analysis: QueryAnalysis) -> float:
-        """Calculate confidence score based on query quality and analysis."""
-        if not sql_query or sql_query.strip().startswith('--'):
-            return 0.0
-        
-        confidence = 0.5  # Base confidence
-        
+    def _validate_and_clean_sql(self, sql: str) -> Tuple[str, bool]:
+        """Validate and clean SQL query."""
+        if not sql:
+            return "SELECT 'No SQL query generated' as message", False
+
+        # Remove code block markers
+        sql = re.sub(r'```sql', '', sql, flags=re.IGNORECASE).strip()
+        sql = re.sub(r'```', '', sql).strip()
+
+        # Ensure it ends with semicolon
+        if not sql.endswith(';'):
+            sql += ';'
+
+        # Add LIMIT if not present and it's a SELECT
+        if sql.upper().startswith('SELECT') and 'LIMIT' not in sql.upper():
+            sql = sql.rstrip(';') + ' LIMIT 100;'
+
+        return sql, True
+
+    def _calculate_confidence(self, sql: str, question: str, response: str) -> float:
+        """Calculate confidence score."""
+        confidence = 0.5
+
         # Check for SQL keywords
-        if re.search(r'\b(SELECT|INSERT|UPDATE|DELETE)\b', sql_query, re.IGNORECASE):
+        if 'SELECT' in sql.upper():
             confidence += 0.2
-        
-        # Check if it addresses the intent
-        if analysis.intent == QueryIntent.COUNT_RECORDS and 'COUNT' in sql_query.upper():
-            confidence += 0.2
-        elif analysis.intent == QueryIntent.SELECT_DATA and 'SELECT' in sql_query.upper():
-            confidence += 0.2
-        elif analysis.intent == QueryIntent.AGGREGATE_DATA and any(agg in sql_query.upper() for agg in ['SUM', 'AVG', 'MAX', 'MIN']):
-            confidence += 0.2
-        
-        # Check for mentioned tables
-        for table in analysis.tables_mentioned:
-            if table.lower() in sql_query.lower():
-                confidence += 0.1
-        
-        # Penalize for obvious errors
-        if 'error' in sql_query.lower() or sql_query.count('(') != sql_query.count(')'):
+
+        # Check if response mentions uncertainty
+        uncertainty_words = ['unsure', 'uncertain', 'maybe', 'perhaps', 'not sure']
+        if any(word in response.lower() for word in uncertainty_words):
             confidence -= 0.3
-        
+
+        # Check for explanation
+        if len(response.split()) > 20:
+            confidence += 0.1
+
         return max(0.0, min(1.0, confidence))
 
-    def _identify_query_type(self, sql_query: str) -> str:
-        """Identify the type of SQL query."""
-        sql_upper = sql_query.upper().strip()
-        
+    def _extract_explanation(self, response_text: str) -> str:
+        """Extract explanation from response."""
+        # Remove SQL code blocks
+        text = re.sub(r'```.*?```', '', response_text, flags=re.DOTALL)
+
+        # Get the remaining text as explanation
+        explanation = text.strip()
+
+        if not explanation:
+            return "Query generated successfully."
+
+        return explanation
+
+    def _extract_tables_from_sql(self, sql: str) -> List[str]:
+        """Extract table names from SQL."""
+        tables = []
+
+        # Simple pattern matching
+        patterns = [
+            r'FROM\s+(\w+)',
+            r'JOIN\s+(\w+)'
+        ]
+
+        for pattern in patterns:
+            matches = re.findall(pattern, sql, re.IGNORECASE)
+            tables.extend(matches)
+
+        return list(set(tables))
+
+    def _identify_query_type(self, sql: str) -> str:
+        """Identify query type."""
+        sql_upper = sql.upper().strip()
+
         if sql_upper.startswith('SELECT'):
             return 'SELECT'
-        elif sql_upper.startswith('INSERT'):
-            return 'INSERT'
-        elif sql_upper.startswith('UPDATE'):
-            return 'UPDATE'
-        elif sql_upper.startswith('DELETE'):
-            return 'DELETE'
+        elif sql_upper.startswith('SHOW'):
+            return 'SHOW'
+        elif sql_upper.startswith('DESCRIBE'):
+            return 'DESCRIBE'
+        elif sql_upper.startswith('EXPLAIN'):
+            return 'EXPLAIN'
         else:
             return 'UNKNOWN'
 
-    def _extract_tables_from_sql(self, sql_query: str) -> List[str]:
-        """Extract table names from SQL query."""
-        tables = []
-        
-        # Pattern to match table names after FROM, JOIN, INTO, UPDATE
-        patterns = [
-            r'FROM\s+(\w+)',
-            r'JOIN\s+(\w+)',
-            r'INTO\s+(\w+)',
-            r'UPDATE\s+(\w+)'
-        ]
-        
-        for pattern in patterns:
-            matches = re.findall(pattern, sql_query, re.IGNORECASE)
-            tables.extend(matches)
-        
-        return list(set(tables))  # Remove duplicates
+    def clear_conversation(self):
+        """Clear conversation history."""
+        self.conversation_history.clear()
+        logger.info("Conversation history cleared")
 
-    def _validate_and_optimize_query(self, sql_result: SQLQuery) -> SQLQuery:
-        """Validate and optimize the generated SQL query."""
-        try:
-            # Basic syntax validation
-            if not sql_result.sql.strip():
-                sql_result.potential_issues.append("Empty SQL query")
-                return sql_result
-            
-            # Check for balanced parentheses
-            if sql_result.sql.count('(') != sql_result.sql.count(')'):
-                sql_result.potential_issues.append("Unbalanced parentheses")
-                sql_result.confidence_score *= 0.7
-            
-            # Check for SQL injection patterns
-            dangerous_patterns = [
-                r';\s*(DROP|DELETE|TRUNCATE)',
-                r'UNION.*SELECT',
-                r'--\s*$'
-            ]
-            
-            for pattern in dangerous_patterns:
-                if re.search(pattern, sql_result.sql, re.IGNORECASE):
-                    sql_result.potential_issues.append(f"Potentially dangerous pattern detected: {pattern}")
-                    sql_result.confidence_score *= 0.5
-            
-            # Schema validation if validator is available
-            if VALIDATOR_AVAILABLE and ValidationResult:
-                schema_validation = sql_validator._validate_against_schema(sql_result.sql)
-                if schema_validation.result == ValidationResult.ERROR:
-                    sql_result.potential_issues.append(f"Schema validation error: {schema_validation.message}")
-                    sql_result.explanation += (
-                        f"\n\nSchema validation failed: {schema_validation.message}\n"
-                        "Possible causes:\n"
-                        "- The query references an unknown alias or column.\n"
-                        "- The schema may not contain the requested data.\n"
-                        "- Try rephrasing your question or check the table/column names.\n"
-                    )
-                    sql_result.confidence_score *= 0.3
-                elif schema_validation.result == ValidationResult.WARNING:
-                    sql_result.potential_issues.append(f"Schema validation warning: {schema_validation.message}")
-                    sql_result.explanation += (
-                        f"\n\nSchema validation warning: {schema_validation.message}\n"
-                        "Review the query for possible issues.\n"
-                    )
-                    sql_result.confidence_score *= 0.8
-            
-            # Suggest optimizations
-            optimizations = []
-            if 'SELECT *' in sql_result.sql:
-                optimizations.append("Consider selecting specific columns instead of using SELECT *")
-            
-            if not re.search(r'\bLIMIT\b', sql_result.sql, re.IGNORECASE) and 'SELECT' in sql_result.sql:
-                optimizations.append("Consider adding a LIMIT clause for large result sets")
-            
-            # Add optimizations to explanation
-            if optimizations:
-                sql_result.explanation += f"\n\nOptimization suggestions:\n" + "\n".join(f"- {opt}" for opt in optimizations)
-                sql_result.optimization_suggestions.extend(optimizations)
+    def get_usage_stats(self) -> Dict[str, Any]:
+        """Get usage statistics."""
+        return {
+            "total_requests": self.request_count,
+            "total_tokens_used": self.total_tokens_used,
+            "cached_queries": len(self.query_cache),
+            "initialized": self._initialized
+        }
 
-            # --- Fix window function compatibility for older MySQL versions ---
-            try:
-                sql_query = sql_result.sql
-                # Replace RANK() OVER (...) with a subquery approach for MySQL compatibility
-                rank_pattern = r'RANK\(\)\s+OVER\s*\(\s*ORDER\s+BY\s+([^)]+)\)'
-                if re.search(rank_pattern, sql_query, re.IGNORECASE):
-                    # For complex RANK() queries, we'll replace with a simpler approach
-                    # This is a basic replacement - in production, you'd want more sophisticated logic
-                    sql_query = re.sub(
-                        r'WITH\s+([^)]*?)\s+AS\s*\(\s*SELECT\s+([^,]+),\s*COUNT\(\*\)\s+AS\s+(\w+),\s*RANK\(\)\s+OVER\s*\(\s*ORDER\s+BY\s+([^)]+)\)\s+AS\s+(\w+)\s+FROM\s+([^)]+)\s+GROUP\s+BY\s+([^)]+)\s*\)',
-                        r'SELECT \2, COUNT(*) as \3 FROM \6 GROUP BY \7 ORDER BY \3 DESC',
-                        sql_query,
-                        flags=re.IGNORECASE | re.DOTALL
-                    )
-                    sql_result.explanation += "\n\nWindow function simplified for MySQL compatibility."
-                
-                # If changes were made, update the SQL
-                if sql_query != sql_result.sql:
-                    sql_result.sql = sql_query
-            except Exception as window_fix_exc:
-                sql_result.potential_issues.append(f"Window function compatibility fix error: {window_fix_exc}")
-                # Replace common non-MySQL date functions
-                sql_query = re.sub(r"CONVERT\s*\(([^,]+),\s*date\)", r"STR_TO_DATE(\1, '%Y-%m-%d')", sql_query, flags=re.IGNORECASE)
-                sql_query = re.sub(r"CONVERT\s*\(([^,]+),\s*datetime\)", r"STR_TO_DATE(\1, '%Y-%m-%d %H:%i:%s')", sql_query, flags=re.IGNORECASE)
-                # Replace GETDATE() with NOW()
-                sql_query = re.sub(r"GETDATE\s*\(\s*\)", "NOW()", sql_query, flags=re.IGNORECASE)
-                # Replace CURRENT_TIMESTAMP() with NOW()
-                sql_query = re.sub(r"CURRENT_TIMESTAMP\s*\(\s*\)", "NOW()", sql_query, flags=re.IGNORECASE)
-                # Replace DATEPART with MySQL's EXTRACT
-                sql_query = re.sub(r"DATEPART\s*\(\s*([a-zA-Z_]+)\s*,\s*([^)]+)\)", r"EXTRACT(\1 FROM \2)", sql_query, flags=re.IGNORECASE)
-                # Replace DATEDIFF with MySQL's DATEDIFF
-                sql_query = re.sub(r"DATEDIFF\s*\(([^,]+),\s*([^)]+)\)", r"DATEDIFF(\1, \2)", sql_query, flags=re.IGNORECASE)
-                # Replace ISNULL with IFNULL
-                sql_query = re.sub(r"ISNULL\s*\(([^)]+)\)", r"IFNULL(\1)", sql_query, flags=re.IGNORECASE)
-                # Replace NVL with IFNULL
-                sql_query = re.sub(r"NVL\s*\(([^,]+),\s*([^)]+)\)", r"IFNULL(\1, \2)", sql_query, flags=re.IGNORECASE)
-                # Replace SYSDATE() with NOW()
-                sql_query = re.sub(r"SYSDATE\s*\(\s*\)", "NOW()", sql_query, flags=re.IGNORECASE)
-                # Replace TO_DATE with STR_TO_DATE
-                sql_query = re.sub(r"TO_DATE\s*\(([^,]+),\s*'([^']+)'\)", r"STR_TO_DATE(\1, '\2')", sql_query, flags=re.IGNORECASE)
-                # Replace TO_CHAR with DATE_FORMAT
-                sql_query = re.sub(r"TO_CHAR\s*\(([^,]+),\s*'([^']+)'\)", r"DATE_FORMAT(\1, '\2')", sql_query, flags=re.IGNORECASE)
-                # Replace SYSTIMESTAMP with NOW()
-                sql_query = re.sub(r"SYSTIMESTAMP", "NOW()", sql_query, flags=re.IGNORECASE)
-                # Replace CURRENT_DATE with CURDATE()
-                sql_query = re.sub(r"CURRENT_DATE", "CURDATE()", sql_query, flags=re.IGNORECASE)
-                # Replace CURRENT_TIME with CURTIME()
-                sql_query = re.sub(r"CURRENT_TIME", "CURTIME()", sql_query, flags=re.IGNORECASE)
-                # Replace GETUTCDATE() with UTC_TIMESTAMP()
-                sql_query = re.sub(r"GETUTCDATE\s*\(\s*\)", "UTC_TIMESTAMP()", sql_query, flags=re.IGNORECASE)
-                # Replace SYSDATE with NOW()
-                sql_query = re.sub(r"SYSDATE", "NOW()", sql_query, flags=re.IGNORECASE)
-                # Replace TRUNC with DATE_FORMAT for date truncation
-                sql_query = re.sub(r"TRUNC\s*\(([^,]+),\s*'([^']+)'\)", r"DATE_FORMAT(\1, '\2')", sql_query, flags=re.IGNORECASE)
-                # Replace RANK() OVER (ORDER BY ...) with MySQL-compatible alternative
-                # This handles the specific case from the logs
-                if 'RANK()' in sql_query.upper():
-                    # Replace the WITH clause containing RANK() with a simpler version
-                    # Original: WITH ApplicationUserCounts AS ( SELECT application_id, COUNT(*) AS user_count, RANK() OVER (ORDER BY COUNT(*) DESC) AS rank FROM spt_link GROUP BY application_id )
-                    # Replacement: Use a subquery with variables for ranking
-                    rank_replacement = """
-                    WITH ApplicationUserCounts AS (
-                        SELECT application_id, COUNT(*) AS user_count,
-                               @rank := @rank + 1 AS rank
-                        FROM spt_link, (SELECT @rank := 0) r
-                        GROUP BY application_id
-                        ORDER BY user_count DESC
-                    )
-                    """
-                    sql_query = re.sub(
-                        r'WITH\s+ApplicationUserCounts\s+AS\s*\(\s*SELECT\s+application_id\s*,\s*COUNT\(\*\)\s+AS\s+user_count\s*,\s*RANK\(\)\s+OVER\s*\(\s*ORDER\s+BY\s+COUNT\(\*\)\s+DESC\s*\)\s+AS\s+rank\s+FROM\s+spt_link\s+GROUP\s+BY\s+application_id\s*\)',
-                        rank_replacement.strip(),
-                        sql_query,
-                        flags=re.IGNORECASE | re.DOTALL
-                    )
-                    sql_result.explanation += "\n\nRANK() function replaced with MySQL-compatible variable-based ranking."
-                
-                # If changes were made, update the SQL
-                if sql_query != sql_result.sql:
-                    sql_result.sql = sql_query
-                    sql_result.explanation += "\n\nMySQL date/time compatibility adjustments applied."
-            except Exception as mysql_dt_exc:
-                sql_result.potential_issues.append(f"MySQL date/time compatibility post-processing error: {mysql_dt_exc}")
-            return sql_result
-            
-            return sql_result
-            
-        except Exception as e:
-            logger.error(f"Query validation error: {str(e)}")
-            sql_result.potential_issues.append(f"Validation error: {str(e)}")
-            return sql_result
 
-# Initialize the advanced SQL engine
-sql_engine = AdvancedSQLEngine()
+# Global optimized SQL engine instance
+sql_engine = OptimizedSQLEngine()
