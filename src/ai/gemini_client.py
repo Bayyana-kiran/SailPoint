@@ -160,8 +160,7 @@ class AdvancedSQLEngine:
                 self.model = genai.GenerativeModel(
                     model_name=GEMINI_CONFIG['model'],
                     generation_config=GENERATION_CONFIG,
-                    safety_settings=SAFETY_SETTINGS,
-                    system_instruction=self._get_advanced_system_instructions()
+                    safety_settings=SAFETY_SETTINGS
                 )
                 
                 # Start chat session
@@ -195,37 +194,6 @@ class AdvancedSQLEngine:
             logger.info("Advanced SQL engine initialized with simple fallback mode due to error")
             return True
     
-    def _get_advanced_system_instructions(self) -> str:
-        """Get advanced system instructions for IdentityIQ SQL generation."""
-        return """
-You are an expert SailPoint IdentityIQ SQL generation engine.
-
-APPROACH:
-1. Analyze the user's intent and understand what they want to query
-2. Identify relevant IdentityIQ tables and columns from the schema provided
-3. Generate optimized MySQL-compatible SQL queries
-4. Use proper table joins and relationships
-5. Apply appropriate filters and limits for safety
-
-IDENTITYIQ EXPERTISE:
-- Core tables: spt_identity (users), spt_application (systems), spt_link (accounts), spt_bundle (roles)
-- Always use table aliases for readability
-- Include LIMIT clauses to prevent large result sets
-- Focus on business-relevant data (names, emails, statuses, dates)
-- Understand IdentityIQ relationships and data model
-
-RESPONSE FORMAT:
-Provide the SQL query in a code block followed by a clear explanation of what it does and why.
-- validate_sql_query(): Check query validity
-- optimize_query(): Suggest improvements
-
-RULES:
-- Always use function calling instead of raw text generation
-- Provide structured responses with confidence scores
-- Include reasoning for all decisions
-- Suggest optimizations and alternatives
-- Handle edge cases and ambiguities gracefully
-"""
 
     def _get_function_tools(self) -> List[Dict[str, Any]]:
         """Define function calling tools for structured SQL generation."""
@@ -325,62 +293,69 @@ RULES:
         )
 
     def generate_sql_query(
-        self, 
-        user_question: str, 
-        schema_context: str, 
+        self,
+        user_question: str,
+        schema_context: str,
         additional_context: Optional[str] = None
     ) -> GenerationResponse:
         """
-        Advanced SQL query generation with structured reasoning.
-        
+        Advanced SQL query generation using structured, minimal context.
         Args:
             user_question: User's natural language question
             schema_context: Database schema information
             additional_context: Optional additional context
-            
         Returns:
             GenerationResponse with generated SQL query and analysis
         """
         if not self._initialized:
             self.initialize()
-        
+
         start_time = time.time()
-        
+
         try:
             # Step 1: Analyze user intent using advanced techniques
             analysis = self.analyze_user_intent(user_question, schema_context)
-            
-            # Step 2: Build enhanced context for LLM
-            enhanced_context = self._build_enhanced_context(
-                user_question, schema_context, analysis, additional_context
-            )
-            
-            # Step 3: Generate using function calling approach
-            response = self._generate_with_advanced_reasoning(enhanced_context)
-            
+
+            # Step 2: Prepare minimal structured context for LLM
+            # Optimized payload: abbreviate keys, limit tables/columns, remove unused fields
+            llm_payload = {
+                "q": user_question,
+                "i": analysis.intent.value,
+                "c": analysis.complexity.value,
+                "t": analysis.tables_mentioned[:2],  # limit to 2 tables
+                "col": analysis.columns_mentioned[:4],  # limit to 4 columns
+                "cond": analysis.conditions[:2],  # limit to 2 conditions
+                "agg": analysis.aggregations[:1],  # limit to 1 aggregation
+            }
+            if additional_context:
+                llm_payload["ctx"] = additional_context
+
+            # Step 3: Generate using function calling approach (structured payload)
+            response = self._generate_with_advanced_reasoning(llm_payload)
+
             # Step 4: Process and validate the response
             sql_result = self._process_advanced_response(response, analysis)
-            
+
             # Step 5: Apply post-processing and validation
             if sql_result.sql and sql_result.sql.strip():
                 sql_result = self._validate_and_optimize_query(sql_result)
-            
+
             generation_time = time.time() - start_time
-            
+
             # Update metrics
             self.request_count += 1
-            
+
             # Log advanced metrics
             logger.info(
                 f"Advanced SQL query generated in {generation_time:.2f}s - "
                 f"Intent: {analysis.intent.value}, Complexity: {analysis.complexity.value}, "
                 f"Confidence: {analysis.confidence_score:.2f}, Tables: {len(analysis.tables_mentioned)}"
             )
-            
+
             # Add to conversation history with analysis
             self._add_to_history("user", user_question)
             self._add_to_history("model", f"Query: {sql_result.sql}\nExplanation: {sql_result.explanation}")
-            
+
             # Create enhanced response object
             return GenerationResponse(
                 success=True,
@@ -390,7 +365,7 @@ RULES:
                 generation_time=generation_time,
                 usage_metadata=getattr(response, 'usage_metadata', {})
             )
-            
+
         except Exception as e:
             logger.error(f"Advanced SQL generation failed: {str(e)}")
             return GenerationResponse(
@@ -405,99 +380,81 @@ RULES:
     
     def explain_query(self, query: str, schema_context: str) -> GenerationResponse:
         """
-        Explain an SQL query in natural language.
-        
-        Args:
-            query: SQL query to explain
-            schema_context: Database schema information
-            
-        Returns:
-            GenerationResponse with query explanation
+        Explain an SQL query in natural language using structured payloads.
         """
         if not self._initialized:
             self.initialize()
-        
         try:
-            prompt = PROMPT_TEMPLATES['query_explanation'].format(
-                query=query,
-                schema_context=schema_context
-            )
-            
-            response = self._generate_with_retry(prompt)
-            
-            # Add to conversation history
+            payload = {
+                "action": "explain_query",
+                "query": query,
+                "schema_context": schema_context
+            }
+            response = self._generate_with_advanced_reasoning(payload)
             self._add_to_history("user", f"Explain this query: {query}")
-            self._add_to_history("model", response.explanation)
-            
-            return response
-            
+            self._add_to_history("model", getattr(response, 'explanation', str(response)))
+            return GenerationResponse(
+                explanation=getattr(response, 'text', str(response)),
+                usage_metadata=getattr(response, 'usage_metadata', None),
+                safety_ratings=getattr(response, 'safety_ratings', None),
+                finish_reason=getattr(response, 'finish_reason', None)
+            )
         except Exception as e:
             logger.error(f"Query explanation failed: {str(e)}")
-            raise
+            return GenerationResponse(success=False, error_message=str(e))
     
     def analyze_error(
-        self, 
-        error_message: str, 
-        query: str, 
+        self,
+        error_message: str,
+        query: str,
         schema_context: str
     ) -> GenerationResponse:
         """
-        Analyze database error and provide solution.
-        
-        Args:
-            error_message: Database error message
-            query: SQL query that caused the error
-            schema_context: Database schema information
-            
-        Returns:
-            GenerationResponse with error analysis and solution
+        Analyze database error and provide solution using structured payloads.
         """
         if not self._initialized:
             self.initialize()
-        
         try:
-            prompt = PROMPT_TEMPLATES['error_analysis'].format(
-                error_message=error_message,
-                query=query,
-                schema_context=schema_context
-            )
-            
-            response = self._generate_with_retry(prompt)
-            
-            # Add to conversation history
+            payload = {
+                "action": "analyze_error",
+                "error_message": error_message,
+                "query": query,
+                "schema_context": schema_context
+            }
+            response = self._generate_with_advanced_reasoning(payload)
             self._add_to_history("user", f"Error: {error_message}")
-            self._add_to_history("model", response.explanation)
-            
-            return response
-            
+            self._add_to_history("model", getattr(response, 'explanation', str(response)))
+            return GenerationResponse(
+                explanation=getattr(response, 'text', str(response)),
+                usage_metadata=getattr(response, 'usage_metadata', None),
+                safety_ratings=getattr(response, 'safety_ratings', None),
+                finish_reason=getattr(response, 'finish_reason', None)
+            )
         except Exception as e:
             logger.error(f"Error analysis failed: {str(e)}")
-            raise
+            return GenerationResponse(success=False, error_message=str(e))
     
     def summarize_schema(self, schema_info: str) -> GenerationResponse:
         """
-        Generate user-friendly summary of database schema.
-        
-        Args:
-            schema_info: Database schema information
-            
-        Returns:
-            GenerationResponse with schema summary
+        Generate user-friendly summary of database schema using structured payloads.
         """
         if not self._initialized:
             self.initialize()
-        
         try:
-            prompt = PROMPT_TEMPLATES['schema_summary'].format(
-                schema_info=schema_info
+            payload = {
+                "action": "summarize_schema",
+                "schema_info": schema_info
+            }
+            response = self._generate_with_advanced_reasoning(payload)
+            return GenerationResponse(
+                explanation=getattr(response, 'text', str(response)),
+                usage_metadata=getattr(response, 'usage_metadata', None),
+                safety_ratings=getattr(response, 'safety_ratings', None),
+                finish_reason=getattr(response, 'finish_reason', None)
             )
-            
-            response = self._generate_with_retry(prompt)
-            return response
-            
         except Exception as e:
             logger.error(f"Schema summarization failed: {str(e)}")
-            raise
+            return GenerationResponse(success=False, error_message=str(e))
     
     def chat_with_context(
         self, 
@@ -817,94 +774,21 @@ RULES:
         
         return list(set(aggregations))  # Remove duplicates
 
-    def _build_enhanced_context(
-        self, 
-        user_question: str, 
-        schema_context: str, 
-        analysis: QueryAnalysis,
-        additional_context: Optional[str] = None
-    ) -> str:
-        """Build enhanced context for LLM with IdentityIQ-specific structured analysis."""
-        context = f"""
-🎯 SAILPOINT IDENTITYIQ SQL GENERATION REQUEST
 
-{schema_context}
-
-📊 QUERY ANALYSIS:
-- Intent: {analysis.intent.value}
-- Complexity: {analysis.complexity.value}
-- Confidence: {analysis.confidence_score:.1%}
-- Tables Identified: {', '.join(analysis.tables_mentioned) if analysis.tables_mentioned else 'Auto-detect from question'}
-- Columns Identified: {', '.join(analysis.columns_mentioned) if analysis.columns_mentioned else 'Auto-detect from question'}
-- Conditions: {', '.join(analysis.conditions) if analysis.conditions else 'None specified'}
-- Aggregations: {', '.join(analysis.aggregations) if analysis.aggregations else 'None required'}
-- AI Reasoning: {analysis.reasoning}
-
-🗣️ USER QUESTION: "{user_question}"
-"""
-        
-        if additional_context:
-            context += f"\n📝 ADDITIONAL CONTEXT:\n{additional_context}"
-        
-        context += """
-
-🚀 IDENTITYIQ SQL GENERATION INSTRUCTIONS:
-You are an expert IdentityIQ database analyst. Generate a precise SQL query that:
-
-1. 🎯 ADDRESSES THE SPECIFIC QUESTION: Understand what the user is really asking
-2. 🏗️ USES CORRECT IDENTITYIQ SCHEMA: Follow the table relationships and naming conventions shown above
-3. 🔗 INCLUDES PROPER JOINS: Connect tables logically (identity → link → application pattern)
-4. 📏 APPLIES SMART LIMITS: Use LIMIT for potentially large result sets (default 100)
-5. 🎨 FORMATS RESULTS NICELY: Use aliases and readable column names
-6. ⚡ OPTIMIZES FOR PERFORMANCE: Use indexes and efficient WHERE clauses
-7. ✅ VALIDATES REFERENCES: Ensure all table aliases and column references are properly defined
-
-🔍 IDENTITYIQ-SPECIFIC QUERY PATTERNS:
-- For "users" or "identities": Use spt_identity table
-- For "applications" or "systems": Use spt_application table  
-- For "accounts": Join spt_identity → spt_link → spt_application
-- For "roles" or "access": Use spt_bundle table
-- For "recent activity": Use date filters with created/modified columns
-- For "certifications": Use spt_certification and related tables
-- For "workflows": Use spt_workflow and spt_workflow_case tables
-
-⚠️ CRITICAL VALIDATION RULES:
-- NEVER reference a table alias that isn't defined in FROM/JOIN clauses
-- ALWAYS include all necessary JOINs for referenced columns
-- For applications: JOIN spt_application a ON ... (then use a.name, a.type, etc.)
-- For entitlements: JOIN spt_entitlement e ON ... (then use e.name, e.type, etc.)
-- For bundles: JOIN spt_bundle b ON ... (then use b.name, b.type, etc.)
-- For "not active" or "no recent activity": Use NOT EXISTS or LEFT JOIN with IS NULL to find missing records
-- For "orphaned" or "inactive owners": Check for absence of recent audit events, not presence of old ones
-- For date comparisons: Use proper date functions like DATE_SUB(NOW(), INTERVAL 1 YEAR)
-
-📋 RESPONSE FORMAT:
-Provide:
-1. The complete SQL query (properly formatted)
-2. A clear explanation of what the query does
-3. Key IdentityIQ concepts involved
-4. Expected result structure
-
-Remember: This is a live IdentityIQ system - generate accurate, safe queries that respect the data model!
-"""
-        
-        return context
-
-    def _generate_with_advanced_reasoning(self, context: str):
-        """Generate response using advanced reasoning with the LLM."""
+    def _generate_with_advanced_reasoning(self, llm_payload: dict):
+        """Generate response using advanced reasoning with the LLM using structured payload."""
         try:
             if GEMINI_AVAILABLE and hasattr(self, 'chat_session') and self.chat_session:
-                # Use the chat session for continuity
-                response = self.chat_session.send_message(context)
+                # Use the chat session for continuity, send structured payload
+                response = self.chat_session.send_message(json.dumps(llm_payload))
                 return response
             else:
                 # Fallback mode - return a simple mock response
-                return self._generate_fallback_response(context)
-            
+                return self._generate_fallback_response(llm_payload)
         except Exception as e:
             logger.error(f"Advanced generation failed: {str(e)}")
             # Always fallback to simple response
-            return self._generate_fallback_response(context)
+            return self._generate_fallback_response(llm_payload)
 
     def _generate_fallback_response(self, context: str):
         """When AI is unavailable, return an error instead of hardcoded SQL."""
@@ -912,25 +796,71 @@ Remember: This is a live IdentityIQ system - generate accurate, safe queries tha
         raise Exception("AI service is currently unavailable. Please configure Google Generative AI or OpenAI API keys to enable intelligent SQL query generation. This system does not use hardcoded queries and relies entirely on AI-generated SQL.")
 
     def _process_advanced_response(self, response, analysis: QueryAnalysis) -> SQLQuery:
-        """Process LLM response into structured SQL query object."""
+        """Process LLM response into structured SQL query object and enforce allowed operations."""
         try:
             response_text = response.text if hasattr(response, 'text') else str(response)
-            
+
             # Extract SQL query using improved parsing
             sql_query = self._extract_sql_from_response(response_text)
-            
+
+            # Enforce allowed operations and handle empty query
+            allowed_ops = {"SELECT", "SHOW", "DESCRIBE", "EXPLAIN", "WITH"}
+            sql_query_stripped = sql_query.strip()
+            # Extract first word, skipping comments and empty lines
+            first_word = ""
+            for line in sql_query_stripped.splitlines():
+                line = line.strip()
+                if not line or line.startswith("--"):
+                    continue
+                first_word = line.split()[0].upper() if line.split() else ""
+                break
+            if not sql_query_stripped:
+                explanation = self._extract_explanation_from_response(response_text)
+                return SQLQuery(
+                    sql="-- Query blocked: No SQL query was generated.",
+                    explanation=(
+                        "Query blocked: No SQL query was generated by the AI.\n"
+                        "Please rephrase your question or provide more details.\n"
+                        f"Explanation: {explanation}"
+                    ),
+                    confidence_score=0.0,
+                    query_type="blocked",
+                    tables_used=[],
+                    columns_used=[],
+                    is_valid=False,
+                    potential_issues=["No SQL query generated"],
+                    optimization_suggestions=[]
+                )
+            if first_word and first_word not in allowed_ops:
+                explanation = self._extract_explanation_from_response(response_text)
+                return SQLQuery(
+                    sql=f"-- Query blocked: Only {', '.join(sorted(allowed_ops))} operations are allowed.",
+                    explanation=(
+                        f"Query blocked: Operation '{first_word}' not allowed. Allowed operations: {', '.join(sorted(allowed_ops))}.\n"
+                        f"Original query: {sql_query}\n"
+                        f"Explanation: {explanation}"
+                    ),
+                    confidence_score=0.0,
+                    query_type="blocked",
+                    tables_used=[],
+                    columns_used=[],
+                    is_valid=False,
+                    potential_issues=[f"Blocked operation: {first_word}"],
+                    optimization_suggestions=[]
+                )
+
             # Extract explanation
             explanation = self._extract_explanation_from_response(response_text)
-            
+
             # Determine confidence based on query quality
             confidence = self._calculate_query_confidence(sql_query, analysis)
-            
+
             # Identify query type
             query_type = self._identify_query_type(sql_query)
-            
+
             # Extract tables used
             tables_used = self._extract_tables_from_sql(sql_query)
-            
+
             return SQLQuery(
                 sql=sql_query,
                 explanation=explanation,
@@ -942,7 +872,7 @@ Remember: This is a live IdentityIQ system - generate accurate, safe queries tha
                 potential_issues=[],
                 optimization_suggestions=[]
             )
-            
+
         except Exception as e:
             logger.error(f"Response processing error: {str(e)}")
             return SQLQuery(
@@ -959,35 +889,38 @@ Remember: This is a live IdentityIQ system - generate accurate, safe queries tha
 
     def _extract_sql_from_response(self, response_text: str) -> str:
         """Extract SQL query from LLM response using improved patterns."""
-        # Look for SQL code blocks
+        # Look for SQL code blocks and SELECT statements
         sql_patterns = [
             r'```sql\s*(.*?)\s*```',
-            r'```\s*(SELECT.*?(?:;|\Z))',
-            r'```\s*(INSERT.*?(?:;|\Z))',
-            r'```\s*(UPDATE.*?(?:;|\Z))',
-            r'```\s*(DELETE.*?(?:;|\Z))',
-            r'(SELECT.*?(?:;|\Z))',
-            r'(INSERT.*?(?:;|\Z))',
-            r'(UPDATE.*?(?:;|\Z))',
-            r'(DELETE.*?(?:;|\Z))'
+            r'```\s*(SELECT.*?;?)\s*```',
+            r'```\s*(INSERT.*?;?)\s*```',
+            r'```\s*(UPDATE.*?;?)\s*```',
+            r'```\s*(DELETE.*?;?)\s*```',
+            r'(SELECT\s+.*?;)',
+            r'(SELECT\s+.*?\n)',
+            r'(SELECT\s+.*?\Z)',
         ]
-        
         for pattern in sql_patterns:
             matches = re.findall(pattern, response_text, re.DOTALL | re.IGNORECASE)
-            if matches:
-                # Clean and return the first match
-                sql = matches[0].strip()
-                # Remove common artifacts
-                sql = re.sub(r'^\s*```[\w]*\s*', '', sql)
-                sql = re.sub(r'\s*```\s*$', '', sql)
-                # Fix semicolon before LIMIT issue
-                sql = re.sub(r';\s*LIMIT\s+(\d+)', r' LIMIT \1', sql, flags=re.IGNORECASE)
-                # Clean up trailing semicolons
+            for match in matches:
+                sql = match.strip()
+                # Remove code block markers
+                sql = re.sub(r'^```sql', '', sql, flags=re.IGNORECASE).strip()
+                sql = re.sub(r'^```', '', sql).strip()
+                sql = re.sub(r'```$', '', sql).strip()
+                # Remove trailing semicolons
                 sql = sql.rstrip(';').strip()
-                return sql
-        
-        # If no patterns match, return the response as-is
-        return response_text.strip()
+                # Only return if it starts with SELECT/SHOW/DESCRIBE/EXPLAIN/WITH
+                if re.match(r'^(SELECT|SHOW|DESCRIBE|EXPLAIN|WITH)\b', sql, re.IGNORECASE):
+                    return sql
+        # Fallback: scan for first line starting with allowed op
+        allowed_ops = ("SELECT", "SHOW", "DESCRIBE", "EXPLAIN", "WITH")
+        for line in response_text.splitlines():
+            line = line.strip()
+            if any(line.upper().startswith(op) for op in allowed_ops):
+                return line
+        # If no patterns match, return empty string to block
+        return ""
 
     def _extract_explanation_from_response(self, response_text: str) -> str:
         """Extract explanation from LLM response."""
@@ -1122,9 +1055,20 @@ Remember: This is a live IdentityIQ system - generate accurate, safe queries tha
                 schema_validation = sql_validator._validate_against_schema(sql_result.sql)
                 if schema_validation.result == ValidationResult.ERROR:
                     sql_result.potential_issues.append(f"Schema validation error: {schema_validation.message}")
+                    sql_result.explanation += (
+                        f"\n\nSchema validation failed: {schema_validation.message}\n"
+                        "Possible causes:\n"
+                        "- The query references an unknown alias or column.\n"
+                        "- The schema may not contain the requested data.\n"
+                        "- Try rephrasing your question or check the table/column names.\n"
+                    )
                     sql_result.confidence_score *= 0.3
                 elif schema_validation.result == ValidationResult.WARNING:
                     sql_result.potential_issues.append(f"Schema validation warning: {schema_validation.message}")
+                    sql_result.explanation += (
+                        f"\n\nSchema validation warning: {schema_validation.message}\n"
+                        "Review the query for possible issues.\n"
+                    )
                     sql_result.confidence_score *= 0.8
             
             # Suggest optimizations
