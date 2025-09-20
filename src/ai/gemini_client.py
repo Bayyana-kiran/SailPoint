@@ -1,6 +1,6 @@
 """
-Simplified and Optimized SQL Generation Engine
-Uses direct text generation with optimized prompts and token management.
+Robust SQL Generation Engine - Eliminates all prompt parsing techniques
+Uses structured response schema and reliable validation methods.
 """
 
 import time
@@ -8,7 +8,8 @@ import logging
 import re
 import json
 from typing import Dict, Any, List, Optional, Tuple
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
+from enum import Enum
 
 try:
     import google.generativeai as genai
@@ -24,11 +25,21 @@ from config.gemini import (
 logger = logging.getLogger(__name__)
 
 
+class QueryType(Enum):
+    """Enum for SQL query types."""
+    SELECT = "SELECT"
+    SHOW = "SHOW" 
+    DESCRIBE = "DESCRIBE"
+    EXPLAIN = "EXPLAIN"
+    UNKNOWN = "UNKNOWN"
+    ERROR = "ERROR"
+
+
 @dataclass
 class SQLQuery:
     """Structured SQL query representation."""
     sql: str
-    query_type: str
+    query_type: QueryType
     tables_used: List[str]
     columns_used: List[str]
     is_valid: bool
@@ -37,6 +48,12 @@ class SQLQuery:
     potential_issues: List[str]
     optimization_suggestions: List[str]
     token_count: Optional[int] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = asdict(self)
+        result['query_type'] = self.query_type.value
+        return result
 
 
 @dataclass
@@ -52,35 +69,287 @@ class GenerationResponse:
     error_message: Optional[str] = None
 
 
-class OptimizedSQLEngine:
+class SQLValidator:
+    """Dedicated SQL validation class with no parsing dependencies."""
+    
+    # Allowed SQL operations
+    ALLOWED_OPERATIONS = {
+        QueryType.SELECT: r'^SELECT\s+',
+        QueryType.SHOW: r'^SHOW\s+',
+        QueryType.DESCRIBE: r'^(?:DESCRIBE|DESC)\s+',
+        QueryType.EXPLAIN: r'^EXPLAIN\s+'
+    }
+    
+    # Dangerous patterns that should never be allowed
+    DANGEROUS_PATTERNS = [
+        r'\b(INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|GRANT|REVOKE)\b',
+        r';\s*(INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|GRANT|REVOKE)\b',
+        r'--\s*[^\r\n]*(?:INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE)',
+        r'/\*.*?(?:INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE).*?\*/',
+        r'\b(LOAD_FILE|INTO\s+OUTFILE|INTO\s+DUMPFILE)\b'
+    ]
+    
+    @classmethod
+    def validate_sql(cls, sql: str) -> Tuple[str, bool, List[str]]:
+        """
+        Validate SQL query without any parsing tricks.
+        Returns: (cleaned_sql, is_valid, issues)
+        """
+        if not sql or not isinstance(sql, str):
+            return "SELECT 'No SQL provided' as message;", False, ["Empty or invalid SQL"]
+        
+        # Clean the SQL
+        cleaned_sql = cls._clean_sql(sql)
+        issues = []
+        
+        # Check for dangerous patterns
+        sql_upper = cleaned_sql.upper()
+        for pattern in cls.DANGEROUS_PATTERNS:
+            if re.search(pattern, sql_upper, re.IGNORECASE | re.MULTILINE | re.DOTALL):
+                return (
+                    "SELECT 'Blocked: Dangerous SQL operation detected' as message;",
+                    False,
+                    ["Contains dangerous SQL operations"]
+                )
+        
+        # Validate allowed operations
+        is_valid_operation = False
+        detected_type = QueryType.UNKNOWN
+        
+        for query_type, pattern in cls.ALLOWED_OPERATIONS.items():
+            if re.match(pattern, sql_upper, re.IGNORECASE):
+                is_valid_operation = True
+                detected_type = query_type
+                break
+        
+        if not is_valid_operation:
+            allowed_ops = [qt.value for qt in cls.ALLOWED_OPERATIONS.keys()]
+            return (
+                f"SELECT 'Invalid: Must start with {', '.join(allowed_ops)}' as message;",
+                False,
+                [f"Must start with one of: {', '.join(allowed_ops)}"]
+            )
+        
+        # Add safety measures
+        final_sql = cls._add_safety_measures(cleaned_sql, detected_type)
+        
+        return final_sql, True, issues
+    
+    @classmethod
+    def _clean_sql(cls, sql: str) -> str:
+        """Clean SQL without complex parsing."""
+        # Remove common code block markers
+        sql = re.sub(r'```(?:sql)?', '', sql, flags=re.IGNORECASE)
+        
+        # Remove leading/trailing whitespace
+        sql = sql.strip()
+        
+        # Ensure single statement (split on ; and take first non-empty)
+        statements = [s.strip() for s in sql.split(';') if s.strip()]
+        if statements:
+            sql = statements[0]
+        
+        # Add semicolon if missing
+        if not sql.endswith(';'):
+            sql += ';'
+            
+        return sql
+    
+    @classmethod
+    def _add_safety_measures(cls, sql: str, query_type: QueryType) -> str:
+        """Add safety measures to SQL."""
+        sql_upper = sql.upper()
+        
+        # Add LIMIT to SELECT queries if not present
+        if query_type == QueryType.SELECT and 'LIMIT' not in sql_upper:
+            sql = sql.rstrip(';') + ' LIMIT 100;'
+        
+        return sql
+    
+    @classmethod
+    def extract_tables(cls, sql: str) -> List[str]:
+        """Extract table names using reliable regex patterns."""
+        if not sql:
+            return []
+        
+        tables = set()
+        sql_clean = re.sub(r'--.*$', '', sql, flags=re.MULTILINE)  # Remove comments
+        sql_clean = re.sub(r'/\*.*?\*/', '', sql_clean, flags=re.DOTALL)  # Remove multi-line comments
+        
+        # Reliable table extraction patterns
+        patterns = [
+            r'\bFROM\s+([`"]?)(\w+)\1(?:\s+(?:AS\s+)?\w+)?',  # FROM table [AS alias]
+            r'\bJOIN\s+([`"]?)(\w+)\1(?:\s+(?:AS\s+)?\w+)?',  # JOIN table [AS alias]
+            r'\bUPDATE\s+([`"]?)(\w+)\1',  # UPDATE table (shouldn't occur but just in case)
+        ]
+        
+        for pattern in patterns:
+            matches = re.findall(pattern, sql_clean, re.IGNORECASE)
+            for _, table_name in matches:
+                if table_name and len(table_name) > 1:
+                    tables.add(table_name.lower())
+        
+        return sorted(list(tables))
+    
+    @classmethod
+    def identify_query_type(cls, sql: str) -> QueryType:
+        """Identify query type reliably."""
+        if not sql:
+            return QueryType.UNKNOWN
+        
+        sql_upper = sql.upper().strip()
+        
+        for query_type, pattern in cls.ALLOWED_OPERATIONS.items():
+            if re.match(pattern, sql_upper, re.IGNORECASE):
+                return query_type
+        
+        return QueryType.UNKNOWN
+
+
+class StructuredResponseHandler:
+    """Handles structured responses using native Gemini structured generation."""
+    
+    @staticmethod
+    def create_response_schema():
+        """Define the response schema using Gemini's structured generation."""
+        import google.generativeai as genai
+        from google.generativeai import protos
+        
+        return genai.protos.Schema(
+            type=genai.protos.Type.OBJECT,
+            properties={
+                "sql": genai.protos.Schema(
+                    type=genai.protos.Type.STRING,
+                    description="The generated SQL query"
+                ),
+                "explanation": genai.protos.Schema(
+                    type=genai.protos.Type.STRING,
+                    description="Clear explanation of the query"
+                ),
+                "confidence": genai.protos.Schema(
+                    type=genai.protos.Type.NUMBER,
+                    description="Confidence score from 0.0 to 1.0"
+                ),
+                "query_type": genai.protos.Schema(
+                    type=genai.protos.Type.STRING,
+                    description="Type of SQL query",
+                    enum=["SELECT", "SHOW", "DESCRIBE", "EXPLAIN", "UNKNOWN"]
+                ),
+                "tables_used": genai.protos.Schema(
+                    type=genai.protos.Type.ARRAY,
+                    items=genai.protos.Schema(type=genai.protos.Type.STRING),
+                    description="List of tables referenced in the query"
+                ),
+                "is_valid": genai.protos.Schema(
+                    type=genai.protos.Type.BOOLEAN,
+                    description="Whether the query appears valid"
+                )
+            },
+            required=["sql", "explanation", "is_valid", "confidence", "query_type", "tables_used"]
+        )
+    
+    @staticmethod
+    def extract_structured_response(response) -> Dict[str, Any]:
+        """Extract structured response directly from Gemini's structured output."""
+        try:
+            # Gemini's structured generation returns the response directly as structured data
+            if hasattr(response, 'candidates') and response.candidates:
+                candidate = response.candidates[0]
+                if hasattr(candidate, 'content') and hasattr(candidate.content, 'parts'):
+                    for part in candidate.content.parts:
+                        if hasattr(part, 'text'):
+                            # The structured response should already be valid JSON
+                            return json.loads(part.text)
+            
+            # Fallback - try to get text content
+            if hasattr(response, 'text'):
+                return json.loads(response.text)
+                
+            raise ValueError("No structured content found in response")
+            
+        except (json.JSONDecodeError, ValueError, AttributeError) as e:
+            logger.error(f"Failed to extract structured response: {e}")
+            # Return fallback structure
+            return {
+                "sql": "SELECT 'Response extraction failed' as error;",
+                "explanation": f"Failed to extract AI response: {str(e)}",
+                "is_valid": False,
+                "confidence": 0.0,
+                "query_type": "ERROR",
+                "tables_used": []
+            }
+    
+    @staticmethod
+    def validate_parsed_response(data: Dict[str, Any]) -> Dict[str, Any]:
+        """Validate and normalize parsed response."""
+        # Set defaults for missing fields
+        defaults = {
+            "sql": "SELECT 'Missing SQL' as error;",
+            "explanation": "No explanation provided",
+            "is_valid": False,
+            "confidence": 0.5,
+            "query_type": "UNKNOWN",
+            "tables_used": []
+        }
+        
+        # Merge with defaults
+        for key, default_value in defaults.items():
+            if key not in data:
+                data[key] = default_value
+        
+        # Validate and fix data types
+        if not isinstance(data["confidence"], (int, float)):
+            data["confidence"] = 0.5
+        else:
+            data["confidence"] = max(0.0, min(1.0, float(data["confidence"])))
+        
+        if not isinstance(data["tables_used"], list):
+            data["tables_used"] = []
+        
+        if not isinstance(data["is_valid"], bool):
+            data["is_valid"] = False
+        
+        return data
+
+
+class RobustSQLEngine:
     """
-    Optimized SQL generation engine using direct text generation with token management.
+    Robust SQL generation engine with no complex prompt parsing.
+    Uses structured generation and reliable validation only.
     """
 
     def __init__(self):
         self.model = None
-        self.conversation_history = []
         self.total_tokens_used = 0
         self.request_count = 0
         self._initialized = False
-        self.last_schema_context = ""
         self.query_cache = {}
+        self.validator = SQLValidator()
+        self.response_handler = StructuredResponseHandler()
 
     def initialize(self) -> bool:
-        """Initialize the optimized SQL engine."""
+        """Initialize the robust SQL engine with structured generation."""
         try:
             validate_gemini_config()
-
             genai.configure(api_key=GEMINI_CONFIG['api_key'])
 
+            # Configure for structured generation
             self.model = genai.GenerativeModel(
                 model_name=GEMINI_CONFIG['model'],
-                generation_config=STRUCTURED_GENERATION_CONFIG,
-                safety_settings=SAFETY_SETTINGS
+                generation_config=genai.GenerationConfig(
+                    temperature=0.1,
+                    top_p=0.8,
+                    top_k=40,
+                    max_output_tokens=2048,
+                    response_mime_type="application/json",
+                    response_schema=self.response_handler.create_response_schema()
+                ),
+                safety_settings=SAFETY_SETTINGS,
+                system_instruction=self._get_system_instruction()
             )
 
             self._initialized = True
-            logger.info(f"Optimized SQL engine initialized with model: {GEMINI_CONFIG['model']}")
+            logger.info(f"Robust SQL engine initialized with structured generation")
             return True
 
         except Exception as e:
@@ -88,22 +357,33 @@ class OptimizedSQLEngine:
             self._initialized = False
             return False
 
+    def _get_system_instruction(self) -> str:
+        """Get system instruction that defines behavior without prompt engineering."""
+        return (
+            "You are a SQL expert for SailPoint IdentityIQ databases. "
+            "Generate ONLY safe, read-only SQL queries (SELECT, SHOW, DESCRIBE, EXPLAIN). "
+            "Never generate INSERT, UPDATE, DELETE, or any data modification queries. "
+            "Always respond with the exact JSON schema provided."
+        )
+
     def generate_sql_query(
         self,
         user_question: str,
         schema_context: str,
         additional_context: Optional[str] = None
     ) -> GenerationResponse:
-        """
-        Generate SQL query using optimized direct text generation.
-        """
+        """Generate SQL query using structured generation without prompt engineering."""
         if not self._initialized:
-            self.initialize()
+            if not self.initialize():
+                return GenerationResponse(
+                    success=False,
+                    error_message="Engine initialization failed"
+                )
 
         start_time = time.time()
 
         try:
-            # Check cache first
+            # Check cache
             cache_key = f"{user_question}_{hash(schema_context)}"
             if cache_key in self.query_cache:
                 cached_result = self.query_cache[cache_key]
@@ -115,31 +395,27 @@ class OptimizedSQLEngine:
                     usage_metadata={'cached': True}
                 )
 
-            # Prepare optimized prompt
-            prompt = self._build_optimized_prompt(user_question, schema_context, additional_context)
-
-            # Generate response
-            response = self._generate_with_retry(prompt)
-
-            # Process response
-            sql_result = self._process_response(response, user_question)
-
-            # Cache result
+            # Build content parts for structured input
+            content_parts = [
+                f"Database Schema:\n{schema_context[:2000]}",
+                f"User Question: {user_question}"
+            ]
+            
+            if additional_context:
+                content_parts.append(f"Additional Context: {additional_context[:500]}")
+            
+            # Generate response using structured generation
+            response = self._generate_with_retry(content_parts)
+            
+            # Process response using structured extraction
+            sql_result = self._process_structured_response(response, user_question)
+            
+            # Cache valid results
             if sql_result and sql_result.is_valid:
                 self.query_cache[cache_key] = sql_result
 
             generation_time = time.time() - start_time
             self.request_count += 1
-
-            # Update token usage
-            if hasattr(response, 'usage_metadata') and response.usage_metadata:
-                tokens_used = getattr(response.usage_metadata, 'total_token_count', 0)
-                self.total_tokens_used += tokens_used
-
-            logger.info(
-                f"SQL query generated in {generation_time:.2f}s - "
-                f"Confidence: {sql_result.confidence_score:.2f}, Tokens: {tokens_used}"
-            )
 
             return GenerationResponse(
                 success=True,
@@ -157,295 +433,80 @@ class OptimizedSQLEngine:
                 generation_time=time.time() - start_time
             )
 
-    def _build_optimized_prompt(self, question: str, schema_context: str, additional_context: Optional[str] = None) -> str:
-        """Build optimized prompt for SQL generation."""
-        # Extract key schema information
-        schema_summary = self._extract_schema_summary(schema_context)
-
-        prompt_parts = [
-            "You are an expert SQL assistant for SailPoint IdentityIQ databases.",
-            "",
-            "CRITICAL RULES:",
-            "1. ONLY generate SELECT, SHOW, DESCRIBE, or EXPLAIN queries",
-            "2. NEVER generate INSERT, UPDATE, DELETE, DROP, or any data modification",
-            "3. Always use proper MySQL syntax",
-            "4. Include LIMIT 100 for safety",
-            "5. Use table aliases for readability",
-            "",
-            "DATABASE SCHEMA:",
-            schema_summary,
-            "",
-            f"USER QUESTION: {question}",
-        ]
-
-        if additional_context:
-            prompt_parts.extend([
-                "",
-                "ADDITIONAL CONTEXT:",
-                additional_context
-            ])
-
-        prompt_parts.extend([
-            "",
-            "OUTPUT FORMAT:",
-            "Respond with a valid JSON object containing:",
-            "- sql: The SQL query string",
-            "- explanation: Explanation of what the query does",
-            "- confidence: Confidence score (0.0 to 1.0)",
-            "- query_type: Type of query (SELECT, SHOW, DESCRIBE, EXPLAIN)",
-            "- tables_used: Array of table names used",
-            "- is_valid: Boolean indicating if SQL is valid",
-            "",
-            "Example:",
-            '{"sql": "SELECT * FROM users LIMIT 100;", "explanation": "Retrieves all user records", "confidence": 0.9, "query_type": "SELECT", "tables_used": ["users"], "is_valid": true}',
-            "",
-            "Do not include any text outside the JSON object."
-        ])
-
-        return "\n".join(prompt_parts)
-
-    def _extract_schema_summary(self, schema_context: str) -> str:
-        """Extract key schema information for the prompt."""
-        lines = schema_context.split('\n')
-        summary_lines = []
-
-        # Extract table definitions
-        in_tables_section = False
-        for line in lines:
-            if 'TABLE:' in line:
-                in_tables_section = True
-                summary_lines.append(line)
-            elif in_tables_section and line.strip().startswith('-'):
-                summary_lines.append(line)
-            elif line.strip() == '' and in_tables_section:
-                # Stop after first table section to keep prompt concise
-                break
-
-        # If no structured tables found, use first 20 lines
-        if not summary_lines:
-            summary_lines = lines[:20]
-
-        return '\n'.join(summary_lines)
-
-    def _generate_with_retry(self, prompt: str, max_retries: int = 3) -> Any:
-        """Generate response with exponential backoff."""
-        last_exception = None
-
+    def _generate_with_retry(self, content_parts: List[str], max_retries: int = 3) -> Any:
+        """Generate response using structured content parts."""
+        content = "\n\n".join(content_parts)
+        
         for attempt in range(max_retries + 1):
             try:
-                response = self.model.generate_content(prompt)
-
-                # Check for safety issues
+                response = self.model.generate_content(content)
+                
+                # Basic safety check
                 if hasattr(response, 'safety_ratings'):
                     for rating in response.safety_ratings:
                         if rating.get('blocked', False):
                             raise ValueError("Response blocked by safety filters")
-
+                
                 return response
-
-            except google_exceptions.ResourceExhausted as e:
-                logger.warning(f"Rate limit exceeded (attempt {attempt + 1})")
-                last_exception = e
+                
+            except google_exceptions.ResourceExhausted:
                 if attempt < max_retries:
-                    delay = 1 * (2 ** attempt)
-                    time.sleep(delay)
+                    time.sleep(2 ** attempt)  # Exponential backoff
                     continue
-
+                raise
+                
             except Exception as e:
-                logger.warning(f"Generation attempt {attempt + 1} failed: {str(e)}")
-                last_exception = e
                 if attempt < max_retries:
-                    delay = 1 * (2 ** attempt)
-                    time.sleep(delay)
+                    time.sleep(1)
                     continue
+                raise e
 
-        raise RuntimeError(f"Generation failed after {max_retries + 1} attempts: {str(last_exception)}")
-
-    def _process_response(self, response, user_question: str) -> SQLQuery:
-        """Process Gemini JSON response into SQL query."""
+    def _process_structured_response(self, response, user_question: str) -> SQLQuery:
+        """Process structured response without any parsing tricks."""
         try:
-            # Parse JSON response
-            response_text = response.text if hasattr(response, 'text') else str(response)
-            response_data = json.loads(response_text)
-
-            # Extract fields
-            sql_query = response_data.get('sql', '')
-            explanation = response_data.get('explanation', 'Query generated successfully.')
-            confidence = response_data.get('confidence', 0.5)
-            query_type = response_data.get('query_type', 'UNKNOWN')
-            tables_used = response_data.get('tables_used', [])
-            is_valid = response_data.get('is_valid', True)
-
-            # Validate and clean SQL
-            sql_query, is_valid = self._validate_and_clean_sql(sql_query)
-
-            # If confidence not provided, calculate it
-            if 'confidence' not in response_data:
-                confidence = self._calculate_confidence(sql_query, user_question, explanation)
-
-            # If query_type not provided, identify it
-            if 'query_type' not in response_data:
-                query_type = self._identify_query_type(sql_query)
-
-            # If tables_used not provided, extract from SQL
-            if not tables_used:
-                tables_used = self._extract_tables_from_sql(sql_query)
-
+            # Extract structured data directly
+            parsed_data = self.response_handler.extract_structured_response(response)
+            validated_data = self.response_handler.validate_parsed_response(parsed_data)
+            
+            # Validate SQL using dedicated validator
+            sql_query, is_valid, issues = self.validator.validate_sql(validated_data["sql"])
+            
+            # Extract tables reliably
+            tables_used = self.validator.extract_tables(sql_query)
+            
+            # Determine query type
+            query_type = self.validator.identify_query_type(sql_query)
+            
             return SQLQuery(
                 sql=sql_query,
                 query_type=query_type,
                 tables_used=tables_used,
                 columns_used=[],
                 is_valid=is_valid,
-                confidence_score=confidence,
-                explanation=explanation,
-                potential_issues=[],
+                confidence_score=validated_data["confidence"],
+                explanation=validated_data["explanation"],
+                potential_issues=issues,
                 optimization_suggestions=[]
             )
-
-        except json.JSONDecodeError as e:
-            logger.error(f"JSON parsing error: {str(e)} - Response: {response_text}")
-            return SQLQuery(
-                sql="SELECT 'Error: Invalid JSON response' as message",
-                query_type="error",
-                tables_used=[],
-                columns_used=[],
-                is_valid=False,
-                confidence_score=0.0,
-                explanation=f"Failed to parse JSON response: {str(e)}",
-                potential_issues=[str(e)],
-                optimization_suggestions=[]
-            )
+            
         except Exception as e:
-            logger.error(f"Response processing error: {str(e)}")
+            logger.error(f"Structured response processing failed: {str(e)}")
             return SQLQuery(
-                sql="SELECT 'Error processing response' as message",
-                query_type="error",
+                sql="SELECT 'Structured processing failed' as error;",
+                query_type=QueryType.ERROR,
                 tables_used=[],
                 columns_used=[],
                 is_valid=False,
                 confidence_score=0.0,
-                explanation=f"Failed to process response: {str(e)}",
-                potential_issues=[str(e)],
+                explanation=f"Failed to process structured response: {str(e)}",
+                potential_issues=["structured_processing_error"],
                 optimization_suggestions=[]
             )
-
-    def _extract_sql_from_response(self, response_text: str) -> str:
-        """Extract SQL query from response."""
-        # Look for SQL code blocks
-        sql_patterns = [
-            r'```sql\s*(.*?)\s*```',
-            r'```\s*(SELECT.*?;?)\s*```',
-            r'(SELECT\s+.*?;)',
-            r'(SELECT\s+.*?\n)',
-        ]
-
-        for pattern in sql_patterns:
-            matches = re.findall(pattern, response_text, re.DOTALL | re.IGNORECASE)
-            for match in matches:
-                sql = match.strip()
-                if sql and self._is_valid_sql_start(sql):
-                    return sql
-
-        # Fallback: look for any line starting with SELECT
-        for line in response_text.split('\n'):
-            line = line.strip()
-            if line.upper().startswith('SELECT'):
-                return line
-
-        return ""
-
-    def _is_valid_sql_start(self, sql: str) -> bool:
-        """Check if SQL starts with allowed operation."""
-        allowed_starts = ('SELECT', 'SHOW', 'DESCRIBE', 'EXPLAIN')
-        return any(sql.upper().strip().startswith(op) for op in allowed_starts)
-
-    def _validate_and_clean_sql(self, sql: str) -> Tuple[str, bool]:
-        """Validate and clean SQL query."""
-        if not sql:
-            return "SELECT 'No SQL query generated' as message", False
-
-        # Remove code block markers
-        sql = re.sub(r'```sql', '', sql, flags=re.IGNORECASE).strip()
-        sql = re.sub(r'```', '', sql).strip()
-
-        # Ensure it ends with semicolon
-        if not sql.endswith(';'):
-            sql += ';'
-
-        # Add LIMIT if not present and it's a SELECT
-        if sql.upper().startswith('SELECT') and 'LIMIT' not in sql.upper():
-            sql = sql.rstrip(';') + ' LIMIT 100;'
-
-        return sql, True
-
-    def _calculate_confidence(self, sql: str, question: str, response: str) -> float:
-        """Calculate confidence score."""
-        confidence = 0.5
-
-        # Check for SQL keywords
-        if 'SELECT' in sql.upper():
-            confidence += 0.2
-
-        # Check if response mentions uncertainty
-        uncertainty_words = ['unsure', 'uncertain', 'maybe', 'perhaps', 'not sure']
-        if any(word in response.lower() for word in uncertainty_words):
-            confidence -= 0.3
-
-        # Check for explanation
-        if len(response.split()) > 20:
-            confidence += 0.1
-
-        return max(0.0, min(1.0, confidence))
-
-    def _extract_explanation(self, response_text: str) -> str:
-        """Extract explanation from response."""
-        # Remove SQL code blocks
-        text = re.sub(r'```.*?```', '', response_text, flags=re.DOTALL)
-
-        # Get the remaining text as explanation
-        explanation = text.strip()
-
-        if not explanation:
-            return "Query generated successfully."
-
-        return explanation
-
-    def _extract_tables_from_sql(self, sql: str) -> List[str]:
-        """Extract table names from SQL."""
-        tables = []
-
-        # Simple pattern matching
-        patterns = [
-            r'FROM\s+(\w+)',
-            r'JOIN\s+(\w+)'
-        ]
-
-        for pattern in patterns:
-            matches = re.findall(pattern, sql, re.IGNORECASE)
-            tables.extend(matches)
-
-        return list(set(tables))
-
-    def _identify_query_type(self, sql: str) -> str:
-        """Identify query type."""
-        sql_upper = sql.upper().strip()
-
-        if sql_upper.startswith('SELECT'):
-            return 'SELECT'
-        elif sql_upper.startswith('SHOW'):
-            return 'SHOW'
-        elif sql_upper.startswith('DESCRIBE'):
-            return 'DESCRIBE'
-        elif sql_upper.startswith('EXPLAIN'):
-            return 'EXPLAIN'
-        else:
-            return 'UNKNOWN'
 
     def clear_conversation(self):
-        """Clear conversation history."""
-        self.conversation_history.clear()
-        logger.info("Conversation history cleared")
+        """Clear conversation history and cache."""
+        self.query_cache.clear()
+        logger.info("Cache and conversation history cleared")
 
     def get_usage_stats(self) -> Dict[str, Any]:
         """Get usage statistics."""
@@ -457,5 +518,5 @@ class OptimizedSQLEngine:
         }
 
 
-# Global optimized SQL engine instance
-sql_engine = OptimizedSQLEngine()
+# Global robust SQL engine instance
+sql_engine = RobustSQLEngine()
