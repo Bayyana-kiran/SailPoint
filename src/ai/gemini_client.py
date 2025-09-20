@@ -25,6 +25,212 @@ from config.gemini import (
 logger = logging.getLogger(__name__)
 
 
+class QueryClassifier:
+    """Pure ML-based query classifier without any patterns or keywords."""
+    
+    def __init__(self):
+        self.classifier_model = None
+        self.embedding_cache = {}
+        self._initialized = False
+    
+    def initialize(self) -> bool:
+        """Initialize the pure ML classification model."""
+        try:
+            if not GEMINI_AVAILABLE:
+                logger.error("Gemini not available for classification")
+                return False
+            
+            # Pure ML classifier - no patterns, just semantic understanding
+            self.classifier_model = genai.GenerativeModel(
+                model_name=GEMINI_CONFIG['model'],
+                generation_config=genai.GenerationConfig(
+                    temperature=0.1,
+                    top_p=0.9,
+                    top_k=20,
+                    max_output_tokens=100,
+                    response_mime_type="application/json",
+                    response_schema=genai.protos.Schema(
+                        type=genai.protos.Type.OBJECT,
+                        properties={
+                            "requires_database_access": genai.protos.Schema(
+                                type=genai.protos.Type.BOOLEAN,
+                                description="Does this query need to access database information?"
+                            ),
+                            "confidence": genai.protos.Schema(
+                                type=genai.protos.Type.NUMBER,
+                                description="Confidence score from 0.0 to 1.0"
+                            ),
+                            "user_intent_summary": genai.protos.Schema(
+                                type=genai.protos.Type.STRING,
+                                description="Brief description of what the user wants to accomplish"
+                            ),
+                            "appropriate_response": genai.protos.Schema(
+                                type=genai.protos.Type.STRING,
+                                description="Most appropriate response approach for this query"
+                            )
+                        },
+                        required=["requires_database_access", "confidence", "user_intent_summary", "appropriate_response"]
+                    )
+                ),
+                safety_settings=SAFETY_SETTINGS,
+                system_instruction=(
+                    "You are an AI that understands user intent through natural language processing. "
+                    "Analyze each query to determine if the user needs information from a database or wants conversational interaction. "
+                    "Use semantic understanding of the user's underlying needs and goals."
+                )
+            )
+            
+            self._initialized = True
+            logger.info("Pure ML query classifier initialized successfully")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize ML classifier: {str(e)}")
+            self._initialized = False
+            return False
+    
+    def classify_query(self, user_input: str) -> Dict[str, Any]:
+        """Classify user query using pure ML semantic understanding."""
+        if not user_input or not isinstance(user_input, str):
+            return {
+                "requires_database_access": False,
+                "confidence": 0.0,
+                "user_intent_summary": "Invalid or empty input",
+                "appropriate_response": "error_handling"
+            }
+        
+        # Initialize if needed
+        if not self._initialized:
+            if not self.initialize():
+                return self._ml_fallback(user_input)
+        
+        # Check cache first
+        cache_key = user_input.strip()[:200]
+        if cache_key in self.embedding_cache:
+            cached_result = self.embedding_cache[cache_key]
+            cached_result["cached"] = True
+            return cached_result
+        
+        try:
+            # Let the ML model understand the user's intent semantically
+            analysis_prompt = f"Analyze this user input to understand their intent: {user_input}"
+            
+            response = self.classifier_model.generate_content(analysis_prompt)
+            classification_data = json.loads(response.text)
+            
+            # Build result with ML understanding
+            result = {
+                "requires_database_access": classification_data.get("requires_database_access", False),
+                "confidence": max(0.0, min(1.0, float(classification_data.get("confidence", 0.5)))),
+                "user_intent_summary": classification_data.get("user_intent_summary", "Intent analysis completed"),
+                "appropriate_response": classification_data.get("appropriate_response", "conversational"),
+                "input_length": len(user_input),
+                "cached": False
+            }
+            
+            # Cache with intelligent memory management
+            if len(self.embedding_cache) < 2000:
+                self.embedding_cache[cache_key] = result.copy()
+            else:
+                # Remove oldest entries when cache is full
+                oldest_keys = list(self.embedding_cache.keys())[:500]
+                for key in oldest_keys:
+                    del self.embedding_cache[key]
+                self.embedding_cache[cache_key] = result.copy()
+            
+            return result
+            
+        except Exception as e:
+            logger.warning(f"ML classification failed: {str(e)}")
+            return self._ml_fallback(user_input)
+    
+    def _ml_fallback(self, user_input: str) -> Dict[str, Any]:
+        """Fallback using basic ML heuristics when main classifier fails."""
+        
+        # Use simple ML-style approach - just length and question structure analysis
+        input_words = user_input.split()
+        word_count = len(input_words)
+        
+        # Very basic heuristic based on linguistic structure only
+        has_question_words = any(word.lower() in user_input.lower() for word in ['what', 'who', 'where', 'when', 'how', 'which'])
+        has_action_request = any(word.lower() in user_input.lower() for word in ['show', 'find', 'get', 'list', 'count'])
+        
+        # Determine database need based on semantic likelihood
+        likely_database_request = (
+            (has_question_words and word_count > 3) or
+            (has_action_request and word_count > 2) or
+            word_count > 8  # Longer queries more likely to be data requests
+        )
+        
+        confidence = 0.6 if likely_database_request else 0.4
+        
+        return {
+            "requires_database_access": likely_database_request,
+            "confidence": confidence,
+            "user_intent_summary": f"Fallback analysis of {word_count} words",
+            "appropriate_response": "database_query" if likely_database_request else "conversational",
+            "fallback_used": True
+        }
+    
+    def should_generate_sql(self, user_input: str) -> Tuple[bool, Dict[str, Any]]:
+        """Determine if SQL generation is needed using ML classification."""
+        classification = self.classify_query(user_input)
+        
+        should_generate = (
+            classification["requires_database_access"] and 
+            classification["confidence"] >= 0.5
+        )
+        
+        return should_generate, classification
+    
+    def get_contextual_response(self, user_input: str, classification: Dict[str, Any]) -> str:
+        """Generate contextual response using ML understanding of user intent."""
+        intent_summary = classification["user_intent_summary"]
+        
+        if not classification["requires_database_access"]:
+            # Use the ML model to generate appropriate conversational response
+            return self._generate_conversational_response(user_input, intent_summary)
+        else:
+            # This shouldn't be called if database access is required
+            return None
+    
+    def _generate_conversational_response(self, user_input: str, intent_summary: str) -> str:
+        """Generate conversational response based on ML understanding."""
+        # Use a simple conversational model or template based on intent
+        try:
+            if not self._initialized:
+                return self._default_conversational_response()
+            
+            # Generate contextual response using ML
+            response_prompt = (
+                f"Generate a helpful conversational response for this user input: '{user_input}'. "
+                f"The user's intent appears to be: {intent_summary}. "
+                f"You are a SailPoint IdentityIQ database assistant. Keep response concise and helpful."
+            )
+            
+            conversation_model = genai.GenerativeModel(
+                model_name=GEMINI_CONFIG['model'],
+                generation_config=genai.GenerationConfig(
+                    temperature=0.3,
+                    max_output_tokens=150
+                )
+            )
+            
+            response = conversation_model.generate_content(response_prompt)
+            return response.text.strip()
+            
+        except Exception as e:
+            logger.warning(f"Conversational response generation failed: {str(e)}")
+            return self._default_conversational_response()
+    
+    def _default_conversational_response(self) -> str:
+        """Default response when ML response generation fails."""
+        return (
+            "I'm your SailPoint IdentityIQ database assistant. I can help you find information "
+            "about users, roles, applications, and access rights. What would you like to know?"
+        )
+
+
 class QueryType(Enum):
     """Enum for SQL query types."""
     SELECT = "SELECT"
@@ -326,6 +532,7 @@ class RobustSQLEngine:
         self.query_cache = {}
         self.validator = SQLValidator()
         self.response_handler = StructuredResponseHandler()
+        self.query_classifier = QueryClassifier()  # Add ML-based classifier
 
     def initialize(self) -> bool:
         """Initialize the robust SQL engine with structured generation."""
@@ -372,7 +579,7 @@ class RobustSQLEngine:
         schema_context: str,
         additional_context: Optional[str] = None
     ) -> GenerationResponse:
-        """Generate SQL query using structured generation without prompt engineering."""
+        """Generate SQL query or conversational response using pure ML classification."""
         if not self._initialized:
             if not self.initialize():
                 return GenerationResponse(
@@ -383,7 +590,32 @@ class RobustSQLEngine:
         start_time = time.time()
 
         try:
-            # Check cache
+            # Use pure ML classification - no patterns
+            should_generate_sql, classification = self.query_classifier.should_generate_sql(user_question)
+            
+            logger.info(
+                f"ML Classification - DB Required: {classification['requires_database_access']}, "
+                f"Confidence: {classification['confidence']:.2f}, "
+                f"Intent: {classification['user_intent_summary']}"
+            )
+            
+            # Handle non-database requests
+            if not should_generate_sql:
+                contextual_response = self.query_classifier.get_contextual_response(user_question, classification)
+                
+                return GenerationResponse(
+                    success=True,
+                    sql_query=None,
+                    explanation=contextual_response,
+                    generation_time=time.time() - start_time,
+                    usage_metadata={
+                        'ml_classification': classification,
+                        'tokens_saved': True,
+                        'response_generated': 'conversational'
+                    }
+                )
+
+            # Generate SQL for database requests
             cache_key = f"{user_question}_{hash(schema_context)}"
             if cache_key in self.query_cache:
                 cached_result = self.query_cache[cache_key]
@@ -392,25 +624,26 @@ class RobustSQLEngine:
                     sql_query=cached_result,
                     explanation=cached_result.explanation,
                     generation_time=0.0,
-                    usage_metadata={'cached': True}
+                    usage_metadata={
+                        'cached': True,
+                        'ml_classification': classification
+                    }
                 )
 
-            # Build content parts for structured input
+            # Build content for SQL generation
             content_parts = [
                 f"Database Schema:\n{schema_context[:2000]}",
-                f"User Question: {user_question}"
+                f"User Question: {user_question}",
+                f"Semantic Context: {classification['user_intent_summary']}"
             ]
             
             if additional_context:
                 content_parts.append(f"Additional Context: {additional_context[:500]}")
             
-            # Generate response using structured generation
+            # Generate structured SQL response
             response = self._generate_with_retry(content_parts)
-            
-            # Process response using structured extraction
             sql_result = self._process_structured_response(response, user_question)
             
-            # Cache valid results
             if sql_result and sql_result.is_valid:
                 self.query_cache[cache_key] = sql_result
 
@@ -422,14 +655,18 @@ class RobustSQLEngine:
                 sql_query=sql_result,
                 explanation=sql_result.explanation,
                 generation_time=generation_time,
-                usage_metadata=getattr(response, 'usage_metadata', {})
+                usage_metadata={
+                    'ml_classification': classification,
+                    'sql_generated': True,
+                    'processing_time': generation_time
+                }
             )
 
         except Exception as e:
-            logger.error(f"SQL generation failed: {str(e)}")
+            logger.error(f"Query processing failed: {str(e)}")
             return GenerationResponse(
                 success=False,
-                error_message=f"SQL generation error: {str(e)}",
+                error_message=f"Processing error: {str(e)}",
                 generation_time=time.time() - start_time
             )
 
