@@ -349,40 +349,54 @@ class SQLValidator:
             r'FROM\s+(\w+)',
             r'JOIN\s+(\w+)\s+(?:AS\s+)?(\w+)',
             r'JOIN\s+(\w+)',
-            # Handle comma-separated tables in FROM clause
-            r'FROM\s+(.+?)\s+WHERE',
-            r'FROM\s+(.+?)(?:\s+WHERE|\s+GROUP|\s+ORDER|\s+HAVING|\s+LIMIT|$)',
         ]
         
+        # Extract all table names first
+        all_tables = set()
         for pattern in patterns:
             matches = re.findall(pattern, normalized, re.IGNORECASE)
             for match in matches:
-                if len(match) == 2:
-                    table, alias = match
-                    # Clean up table and alias
-                    table = table.strip()
-                    alias = alias.strip()
-                    if alias and alias != table:
-                        aliases[alias.lower()] = table.lower()
+                if isinstance(match, tuple):
+                    # Handle patterns with two groups (table, alias)
+                    table = match[0].strip()
+                    if len(match) > 1 and match[1].strip():
+                        alias = match[1].strip()
+                        if alias != table:
+                            aliases[alias.lower()] = table.lower()
+                        else:
+                            aliases[table.lower()] = table.lower()
                     else:
                         aliases[table.lower()] = table.lower()
-                elif len(match) == 1:
-                    # Handle comma-separated tables
-                    from_part = match[0]
-                    # Split by comma and extract table alias pairs
-                    tables = [t.strip() for t in from_part.split(',')]
-                    for table_spec in tables:
-                        parts = table_spec.split()
-                        if len(parts) >= 2:
-                            table = parts[0]
-                            alias = parts[-1]  # Last part is usually the alias
-                            if alias != table:
-                                aliases[alias.lower()] = table.lower()
-                            else:
-                                aliases[table.lower()] = table.lower()
-                        elif len(parts) == 1:
-                            table = parts[0]
+                    all_tables.add(table.lower())
+                else:
+                    # Handle single group patterns
+                    table = match.strip()
+                    aliases[table.lower()] = table.lower()
+                    all_tables.add(table.lower())
+        
+        # Handle comma-separated tables in FROM clause
+        from_match = re.search(r'FROM\s+(.+?)(?:\s+WHERE|\s+GROUP|\s+ORDER|\s+HAVING|\s+LIMIT|$)', normalized, re.IGNORECASE)
+        if from_match:
+            from_part = from_match.group(1)
+            if ',' in from_part:
+                tables = [t.strip() for t in from_part.split(',')]
+                for table_spec in tables:
+                    parts = table_spec.split()
+                    table = parts[0]
+                    if len(parts) > 1:
+                        alias = parts[-1]
+                        if alias.lower() != table.lower():
+                            aliases[alias.lower()] = table.lower()
+                        else:
                             aliases[table.lower()] = table.lower()
+                    else:
+                        aliases[table.lower()] = table.lower()
+                    all_tables.add(table.lower())
+        
+        # Allow table names to be used as qualifiers even without aliases
+        for table in all_tables:
+            if table not in aliases:
+                aliases[table] = table
         
         return aliases
     
