@@ -116,6 +116,11 @@ class QueryClassifier:
             analysis_prompt = f"Analyze this user input to understand their intent: {user_input}"
             
             response = self.classifier_model.generate_content(analysis_prompt)
+            
+            # Track token usage for classification
+            if hasattr(response, 'usage_metadata'):
+                self.total_tokens_used += getattr(response.usage_metadata, 'total_token_count', 0)
+            
             classification_data = json.loads(response.text)
             
             # Build result with ML understanding
@@ -217,6 +222,11 @@ class QueryClassifier:
             )
             
             response = conversation_model.generate_content(response_prompt)
+            
+            # Track token usage for conversational responses
+            if hasattr(response, 'usage_metadata'):
+                self.total_tokens_used += getattr(response.usage_metadata, 'total_token_count', 0)
+            
             return response.text.strip()
             
         except Exception as e:
@@ -642,6 +652,11 @@ class RobustSQLEngine:
             
             # Generate structured SQL response
             response = self._generate_with_retry(content_parts)
+            
+            # Track token usage
+            if hasattr(response, 'usage_metadata'):
+                self.total_tokens_used += getattr(response.usage_metadata, 'total_token_count', 0)
+            
             sql_result = self._process_structured_response(response, user_question)
             
             if sql_result and sql_result.is_valid:

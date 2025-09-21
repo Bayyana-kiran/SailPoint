@@ -288,35 +288,31 @@ def process_user_message(user_input: str):
             'timestamp': time.time()
         })
         
-        with st.spinner("Generating SQL query..."):
-            # Generate SQL query using Gemini
+        with st.spinner("Processing your request..."):
+            # Generate response using Gemini
             response = sql_engine.generate_sql_query(
                 user_question=user_input,
                 schema_context=st.session_state.schema_context
             )
             
-            # Extract SQL query from the SQLQuery object
-            if response.sql_query and hasattr(response.sql_query, 'sql'):
-                sql_query = response.sql_query.sql.strip()
-                query_confidence = getattr(response.sql_query, 'confidence_score', 0.5)
-                potential_issues = getattr(response.sql_query, 'potential_issues', [])
-            else:
-                # Fallback to parsing from explanation
-                sql_query = response.explanation.strip()
-                query_confidence = 0.5
-                potential_issues = []
+            # Check if this is a conversational response (no SQL query generated)
+            if response.sql_query is None or not hasattr(response.sql_query, 'sql') or not response.sql_query.sql:
+                # Handle conversational response
+                response_content = response.explanation.strip()
                 
-                # Extract SQL query from response (remove markdown formatting)
-                if "```sql" in sql_query.lower():
-                    sql_query = sql_query.split("```sql")[1].split("```")[0].strip()
-                elif "```" in sql_query:
-                    sql_query = sql_query.split("```")[1].strip()
+                # Add assistant response
+                st.session_state.messages.append({
+                    'role': 'assistant',
+                    'content': response_content,
+                    'timestamp': time.time(),
+                    'conversational': True
+                })
+                return
             
-            # Handle empty or invalid SQL queries
-            if not sql_query or sql_query.startswith("--") or sql_query.startswith("SELECT '"):
-                logger.warning(f"Empty or invalid SQL query generated: '{sql_query}'")
-                sql_query = "SELECT 'Unable to generate a valid SQL query. Please rephrase your question.' as message"
-                query_confidence = 0.0
+            # Extract SQL query from the SQLQuery object for database queries
+            sql_query = response.sql_query.sql.strip()
+            query_confidence = getattr(response.sql_query, 'confidence', 0.5)
+            potential_issues = getattr(response.sql_query, 'issues', [])
         
         # Check for potential issues with the generated query
         warning_msg = None
