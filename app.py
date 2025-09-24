@@ -20,6 +20,7 @@ try:
     from src.database.connection import db_connection
     from src.database.metadata import metadata_analyzer
     from src.security.validator import sql_validator, ValidationResult
+    from src.security.auth_manager import auth_manager
     from src.ai.gemini_client import sql_engine
 except ImportError as e:
     st.error(f"Module import error: {e}")
@@ -136,6 +137,47 @@ def initialize_session_state():
     
     if 'query_history' not in st.session_state:
         st.session_state.query_history = []
+    
+    # Load chat history if user is authenticated
+    if auth_manager.is_authenticated() and not st.session_state.messages:
+        load_chat_history()
+
+def load_chat_history():
+    """Load chat history from the database for the current session."""
+    if not auth_manager.is_authenticated():
+        return
+    
+    messages = auth_manager.load_chat_history()
+    st.session_state.messages = []
+    
+    for msg in messages:
+        # Convert timestamp to float if it's a string
+        timestamp = msg['timestamp']
+        if isinstance(timestamp, str):
+            try:
+                # Try parsing as ISO format first
+                timestamp = datetime.fromisoformat(timestamp.replace('Z', '+00:00')).timestamp()
+            except ValueError:
+                # Fallback to direct float conversion
+                timestamp = float(timestamp)
+        
+        message_data = {
+            'role': msg['role'],
+            'content': msg['content'],
+            'timestamp': timestamp
+        }
+        
+        if msg['query']:
+            message_data['query'] = msg['query']
+        
+        if msg['results']:
+            message_data['results'] = msg['results']
+            message_data['columns'] = [col for col in msg['results'][0].keys()] if msg['results'] else []
+        
+        if msg['error']:
+            message_data['error'] = True
+        
+        st.session_state.messages.append(message_data)
 
 def check_environment():
     import os
@@ -288,6 +330,9 @@ def process_user_message(user_input: str):
             'timestamp': time.time()
         })
         
+        # Save user message to database
+        auth_manager.save_message('user', user_input)
+        
         with st.spinner("Processing your request..."):
             # Generate response using Gemini
             response = sql_engine.generate_sql_query(
@@ -307,6 +352,9 @@ def process_user_message(user_input: str):
                     'timestamp': time.time(),
                     'conversational': True
                 })
+                
+                # Save assistant message to database
+                auth_manager.save_message('assistant', response_content)
                 return
             
             # Extract SQL query from the SQLQuery object for database queries
@@ -358,6 +406,9 @@ def process_user_message(user_input: str):
                 'columns': execution_result['columns']
             })
             
+            # Save assistant message with query results to database
+            auth_manager.save_message('assistant', response_content, sql_query, execution_result['data'])
+            
         else:
             # Handle query execution error
             error_type = execution_result.get('type', 'unknown')
@@ -402,19 +453,38 @@ Please check your question and try again.
                 'timestamp': time.time(),
                 'error': True
             })
+            
+            # Save error message to database
+            auth_manager.save_message('assistant', response_content, error=True)
         
     except Exception as e:
         logger.error(f"Message processing failed: {str(e)}")
+        error_content = f"I apologize, but I encountered an error while processing your request: {str(e)}"
         st.session_state.messages.append({
             'role': 'assistant',
-            'content': f"I apologize, but I encountered an error while processing your request: {str(e)}",
+            'content': error_content,
             'timestamp': time.time(),
             'error': True
         })
+        
+        # Save error message to database
+        auth_manager.save_message('assistant', error_content, error=True)
 
 def render_sidebar():
     """Render sidebar with database info and controls."""
     st.sidebar.title("Database Chatbot")
+    
+    # User Authentication Section
+    if auth_manager.is_authenticated():
+        user = auth_manager.get_current_user()
+        st.sidebar.subheader(f"👤 {user['username']}")
+        
+        if st.sidebar.button("🚪 Logout"):
+            auth_manager.logout()
+            st.rerun()
+    else:
+        st.sidebar.subheader("👤 Authentication Required")
+        st.sidebar.info("Please log in to save your chat history.")
     
     # Connection status
     st.sidebar.subheader("📊 Status")
@@ -428,14 +498,39 @@ def render_sidebar():
     else:
         st.sidebar.error("AI Assistant: Not Ready")
     
-    # Database info
-    if st.session_state.database_connected:
-        st.sidebar.subheader("🗄️ Database Info")
-        try:
-            conn_info = db_connection.get_connection_info()
-            st.sidebar.json(conn_info)
-        except:
-            st.sidebar.error("Could not retrieve connection info")
+    # Chat Sessions (only for authenticated users)
+    if auth_manager.is_authenticated():
+        st.sidebar.subheader("💬 Chat Sessions")
+        
+        # New session button
+        if st.sidebar.button("➕ New Chat Session"):
+            auth_manager.create_new_session()
+            st.session_state.messages = []
+            st.rerun()
+        
+        # List existing sessions
+        sessions = auth_manager.get_user_sessions()
+        if sessions:
+            for session in sessions[:5]:  # Show last 5 sessions
+                session_name = session['session_name'] or f"Chat {session['created_at'][:19]}"
+                is_current = session['id'] == st.session_state.get('current_session_id')
+                
+                col1, col2 = st.sidebar.columns([3, 1])
+                with col1:
+                    if st.button(f"{'📌 ' if is_current else ''}{session_name[:20]}...", 
+                               key=f"session_{session['id']}", disabled=is_current):
+                        auth_manager.switch_session(session['id'])
+                        load_chat_history()
+                        st.rerun()
+                with col2:
+                    if st.button("🗑️", key=f"delete_{session['id']}"):
+                        if auth_manager.delete_session(session['id']):
+                            st.sidebar.success("Session deleted!")
+                            # If current session was deleted, create new one
+                            if is_current:
+                                auth_manager.create_new_session()
+                                st.session_state.messages = []
+                            st.rerun()
     
     # Query history
     st.sidebar.subheader("📈 Query Statistics")
@@ -481,10 +576,61 @@ def render_sidebar():
                 mime="application/json"
             )
 
+def render_auth_ui():
+    """Render authentication UI for login/signup."""
+    st.title("🔐 Database Chatbot - Authentication")
+    st.markdown("Please log in or create an account to access the chatbot and save your chat history.")
+    
+    tab1, tab2 = st.tabs(["🔑 Login", "📝 Sign Up"])
+    
+    with tab1:
+        st.subheader("Login to your account")
+        with st.form("login_form"):
+            login_username = st.text_input("Username or Email")
+            login_password = st.text_input("Password", type="password")
+            login_submitted = st.form_submit_button("Login")
+            
+            if login_submitted:
+                if not login_username or not login_password:
+                    st.error("Please fill in all fields.")
+                else:
+                    if auth_manager.login(login_username, login_password):
+                        st.success("Login successful!")
+                        st.rerun()
+                    else:
+                        st.error("Invalid username/email or password.")
+    
+    with tab2:
+        st.subheader("Create a new account")
+        with st.form("signup_form"):
+            signup_username = st.text_input("Username")
+            signup_email = st.text_input("Email")
+            signup_password = st.text_input("Password", type="password")
+            signup_confirm = st.text_input("Confirm Password", type="password")
+            signup_submitted = st.form_submit_button("Sign Up")
+            
+            if signup_submitted:
+                if not all([signup_username, signup_email, signup_password, signup_confirm]):
+                    st.error("Please fill in all fields.")
+                elif signup_password != signup_confirm:
+                    st.error("Passwords do not match.")
+                else:
+                    success, message = auth_manager.signup(signup_username, signup_email, signup_password)
+                    if success:
+                        st.success(message)
+                        st.rerun()
+                    else:
+                        st.error(message)
+
 def main():
     """Main application function."""
     # Initialize session state
     initialize_session_state()
+    
+    # Check if user is authenticated
+    if not auth_manager.is_authenticated():
+        render_auth_ui()
+        return
     
     # Check environment
     if not check_environment():
