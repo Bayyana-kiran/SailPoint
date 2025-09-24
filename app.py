@@ -29,54 +29,50 @@ except ImportError as e:
 
 st.set_page_config(
     page_title="Database Chatbot",
-    page_icon="💬",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
 st.markdown("""
 <style>
+    .chat-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    
     .chat-message {
-        padding: 1rem;
-        border-radius: 0.5rem;
-        margin-bottom: 1rem;
-        display: flex;
-        align-items: flex-start;
+        margin-bottom: 20px;
+        padding: 12px 16px;
+        border-radius: 18px;
+        max-width: 70%;
+        word-wrap: break-word;
+        font-size: 14px;
+        line-height: 1.4;
     }
     
     .chat-message.user {
-        background-color: #f0f2f6;
-        margin-left: 2rem;
+        background-color: #007bff;
+        color: white;
+        margin-left: auto;
+        margin-right: 0;
+        text-align: left;
     }
     
     .chat-message.assistant {
-        background-color: #ffffff;
-        border: 1px solid #e0e0e0;
-        margin-right: 2rem;
+        background-color: #f7f7f8;
+        color: #333;
+        margin-left: 0;
+        margin-right: auto;
+        border: 1px solid #e5e5e5;
+        text-align: left;
     }
     
-    .chat-avatar {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        margin-right: 1rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: bold;
-        color: white;
-    }
-    
-    .user-avatar {
-        background-color: #ff6b6b;
-    }
-    
-    .assistant-avatar {
-        background-color: #4ecdc4;
-    }
-    
-    .chat-content {
-        flex-grow: 1;
+    .message-timestamp {
+        font-size: 11px;
+        color: #666;
+        margin-top: 4px;
+        text-align: right;
     }
     
     .query-box {
@@ -115,6 +111,36 @@ st.markdown("""
         border-radius: 0.5rem;
         border: 1px solid #dee2e6;
         text-align: center;
+    }
+    
+    .main-title {
+        text-align: center;
+        color: #333;
+        font-size: 24px;
+        font-weight: 600;
+        margin-bottom: 20px;
+    }
+    
+    .subtitle {
+        text-align: center;
+        color: #666;
+        font-size: 16px;
+        margin-bottom: 30px;
+    }
+    
+    /* Sidebar styling */
+    .stSidebar {
+        background-color: #f8f9fa;
+        border-right: 1px solid #e9ecef;
+    }
+    
+    .stSidebar .stButton button {
+        border-radius: 8px;
+        margin-bottom: 4px;
+    }
+    
+    .stSidebar .stButton button:hover {
+        background-color: #e9ecef;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -205,20 +231,20 @@ def initialize_connections():
             with st.spinner("Connecting to database..."):
                 db_connection.initialize()
                 st.session_state.database_connected = True
-                st.success("✅ Database connected successfully!")
+                st.success("Database connected successfully!")
         
         if not st.session_state.schema_analyzed:
             with st.spinner("Analyzing database schema..."):
                 schema = metadata_analyzer.analyze_schema()
                 st.session_state.schema_context = metadata_analyzer.generate_llm_context(schema)
                 st.session_state.schema_analyzed = True
-                st.success(f"✅ Schema analyzed! Found {len(schema.tables)} tables.")
+                st.success(f"Schema analyzed! Found {len(schema.tables)} tables.")
         
         if not st.session_state.gemini_initialized:
             with st.spinner("Initializing AI assistant..."):
                 sql_engine.initialize()
                 st.session_state.gemini_initialized = True
-                st.success("✅ AI assistant ready!")
+                st.success("AI assistant ready!")
         
         return True
         
@@ -233,23 +259,13 @@ def render_chat_message(message: Dict[str, Any]):
     content = message['content']
     timestamp = message.get('timestamp', time.time())
     
-    avatar_class = "user-avatar" if role == "user" else "assistant-avatar"
     message_class = "user" if role == "user" else "assistant"
-    avatar_text = "U" if role == "user" else "AI"
     
     st.markdown(f"""
     <div class="chat-message {message_class}">
-        <div class="chat-avatar {avatar_class}">
-            {avatar_text}
-        </div>
-        <div class="chat-content">
-            <strong>{'You' if role == 'user' else 'Assistant'}</strong>
-            <br>
-            {content}
-            <br>
-            <small style="color: #666;">
-                {datetime.fromtimestamp(timestamp).strftime('%H:%M:%S')}
-            </small>
+        {content}
+        <div class="message-timestamp">
+            {datetime.fromtimestamp(timestamp).strftime('%H:%M')}
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -365,7 +381,7 @@ def process_user_message(user_input: str):
         # Check for potential issues with the generated query
         warning_msg = None
         if query_confidence < 0.5 or potential_issues:
-            warning_msg = f"⚠️ **Query Quality Warning:**\n"
+            warning_msg = f"**Query Quality Warning:**\n"
             warning_msg += f"- Confidence Score: {query_confidence:.1%}\n"
             if potential_issues:
                 warning_msg += "- Issues: " + "; ".join(potential_issues) + "\n"
@@ -394,7 +410,7 @@ def process_user_message(user_input: str):
                 response_content += f"\n{warning_msg}"
             
             if execution_result.get('validation_warning'):
-                response_content += f"\n⚠️ **Validation Warning:** {execution_result['validation_warning']}"
+                response_content += f"\n**Validation Warning:** {execution_result['validation_warning']}"
             
             # Add assistant response
             st.session_state.messages.append({
@@ -472,116 +488,76 @@ Please check your question and try again.
 
 def render_sidebar():
     """Render sidebar with database info and controls."""
-    st.sidebar.title("Database Chatbot")
-    
-    # User Authentication Section
+    # New Chat button at the top (ChatGPT style)
     if auth_manager.is_authenticated():
-        user = auth_manager.get_current_user()
-        st.sidebar.subheader(f"👤 {user['username']}")
-        
-        if st.sidebar.button("🚪 Logout"):
-            auth_manager.logout()
-            st.rerun()
-    else:
-        st.sidebar.subheader("👤 Authentication Required")
-        st.sidebar.info("Please log in to save your chat history.")
-    
-    # Connection status
-    st.sidebar.subheader("📊 Status")
-    if st.session_state.database_connected:
-        st.sidebar.success("Database: Connected")
-    else:
-        st.sidebar.error("Database: Disconnected")
-    
-    if st.session_state.gemini_initialized:
-        st.sidebar.success("AI Assistant: Ready")
-    else:
-        st.sidebar.error("AI Assistant: Not Ready")
-    
-    # Chat Sessions (only for authenticated users)
-    if auth_manager.is_authenticated():
-        st.sidebar.subheader("💬 Chat Sessions")
-        
-        # New session button
-        if st.sidebar.button("➕ New Chat Session"):
+        if st.sidebar.button("New Chat", use_container_width=True):
             auth_manager.create_new_session()
             st.session_state.messages = []
             st.rerun()
         
+        st.sidebar.divider()
+    
+    # Chat Sessions (only for authenticated users) - main content
+    if auth_manager.is_authenticated():
+        st.sidebar.subheader("Recent Chats")
+        
         # List existing sessions
         sessions = auth_manager.get_user_sessions()
         if sessions:
-            for session in sessions[:5]:  # Show last 5 sessions
+            for session in sessions[:10]:  # Show last 10 sessions
                 session_name = session['session_name'] or f"Chat {session['created_at'][:19]}"
                 is_current = session['id'] == st.session_state.get('current_session_id')
                 
-                col1, col2 = st.sidebar.columns([3, 1])
-                with col1:
-                    if st.button(f"{'📌 ' if is_current else ''}{session_name[:20]}...", 
-                               key=f"session_{session['id']}", disabled=is_current):
-                        auth_manager.switch_session(session['id'])
-                        load_chat_history()
-                        st.rerun()
-                with col2:
-                    if st.button("🗑️", key=f"delete_{session['id']}"):
-                        if auth_manager.delete_session(session['id']):
-                            st.sidebar.success("Session deleted!")
-                            # If current session was deleted, create new one
-                            if is_current:
-                                auth_manager.create_new_session()
-                                st.session_state.messages = []
-                            st.rerun()
+                # Create a button that looks like ChatGPT conversation list
+                button_label = f"{'● ' if is_current else ''}{session_name[:25]}{'...' if len(session_name) > 25 else ''}"
+                
+                if st.sidebar.button(button_label, key=f"session_{session['id']}", 
+                                   use_container_width=True, 
+                                   help=f"Created: {session['created_at'][:19]}"):
+                    auth_manager.switch_session(session['id'])
+                    load_chat_history()
+                    st.rerun()
+        else:
+            st.sidebar.info("No previous chats")
     
-    # Query history
-    st.sidebar.subheader("📈 Query Statistics")
-    if st.session_state.query_history:
-        total_queries = len(st.session_state.query_history)
-        successful_queries = len([q for q in st.session_state.query_history if q['success']])
-        avg_execution_time = sum([q['execution_time'] for q in st.session_state.query_history]) / total_queries
+    # User Authentication Section at bottom
+    st.sidebar.divider()
+    if auth_manager.is_authenticated():
+        user = auth_manager.get_current_user()
+        st.sidebar.write(f"**{user['username']}**")
         
         col1, col2 = st.sidebar.columns(2)
         with col1:
-            st.metric("Total Queries", total_queries)
-            st.metric("Success Rate", f"{(successful_queries/total_queries)*100:.1f}%")
+            if st.sidebar.button("Settings", use_container_width=True):
+                st.sidebar.info("Settings panel coming soon...")
         with col2:
-            st.metric("Avg Time", f"{avg_execution_time:.3f}s")
+            if st.sidebar.button("Logout", use_container_width=True):
+                auth_manager.logout()
+                st.rerun()
     else:
-        st.sidebar.info("No queries executed yet")
+        st.sidebar.subheader("Sign In")
+        st.sidebar.info("Please log in to save your chat history.")
     
-    # Controls
-    st.sidebar.subheader("🔧 Controls")
-    
-    if st.sidebar.button("🔄 Refresh Schema"):
-        with st.spinner("Refreshing schema..."):
-            try:
-                schema = metadata_analyzer.analyze_schema(force_refresh=True)
-                st.session_state.schema_context = metadata_analyzer.generate_llm_context(schema)
-                st.sidebar.success("Schema refreshed!")
-            except Exception as e:
-                st.sidebar.error(f"Schema refresh failed: {str(e)}")
-    
-    if st.sidebar.button("🗑️ Clear Chat"):
-        st.session_state.messages = []
-        sql_engine.clear_conversation()
-        st.sidebar.success("Chat cleared!")
-        st.rerun()
-    
-    if st.sidebar.button("📊 Export Data"):
-        if st.session_state.messages:
-            chat_data = json.dumps(st.session_state.messages, indent=2, default=str)
-            st.sidebar.download_button(
-                label="Download Chat History",
-                data=chat_data,
-                file_name=f"chat_history_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-                mime="application/json"
-            )
+    # Connection status (compact)
+    st.sidebar.divider()
+    status_col1, status_col2 = st.sidebar.columns(2)
+    with status_col1:
+        if st.session_state.database_connected:
+            st.sidebar.success("DB")
+        else:
+            st.sidebar.error("DB")
+    with status_col2:
+        if st.session_state.gemini_initialized:
+            st.sidebar.success("AI")
+        else:
+            st.sidebar.error("AI")
 
 def render_auth_ui():
     """Render authentication UI for login/signup."""
-    st.title("🔐 Database Chatbot - Authentication")
+    st.title("Database Chatbot - Authentication")
     st.markdown("Please log in or create an account to access the chatbot and save your chat history.")
     
-    tab1, tab2 = st.tabs(["🔑 Login", "📝 Sign Up"])
+    tab1, tab2 = st.tabs(["Login", "Sign Up"])
     
     with tab1:
         st.subheader("Login to your account")
@@ -644,10 +620,11 @@ def main():
     render_sidebar()
     
     # Main chat interface
-    st.title("💬 Database Chatbot")
-    st.markdown("Ask questions about your database in natural language!")
+    st.markdown('<div class="main-title">Database Chatbot</div>', unsafe_allow_html=True)
+    st.markdown('<div class="subtitle">Ask questions about your database in natural language!</div>', unsafe_allow_html=True)
     
     # Display chat messages
+    st.markdown('<div class="chat-container">', unsafe_allow_html=True)
     chat_container = st.container()
     with chat_container:
         for message in st.session_state.messages:
@@ -661,7 +638,7 @@ def main():
                     
                     # Display results without PyArrow dependency
                     if len(results) > 0:
-                        st.info(f"📊 **{len(results)} rows returned**")
+                        st.info(f"**{len(results)} rows returned**")
                         
                         # Convert to DataFrame for easier handling
                         df = pd.DataFrame(results)
@@ -698,7 +675,7 @@ def main():
                         # Show summary for numeric columns
                         numeric_cols = df.select_dtypes(include=['number']).columns.tolist()
                         if len(numeric_cols) > 0:
-                            with st.expander("📈 View Summary Statistics"):
+                            with st.expander("View Summary Statistics"):
                                 for col in numeric_cols:
                                     col_data = df[col].dropna()
                                     if len(col_data) > 0:
@@ -712,6 +689,7 @@ def main():
                         st.info("Query executed successfully but returned no results.")
                 else:
                     st.info("Query executed successfully but returned no results.")
+    st.markdown('</div>', unsafe_allow_html=True)
     
     # Chat input
     user_input = st.chat_input("Ask a question about your database...")
@@ -722,7 +700,7 @@ def main():
     
     # Example queries
     if not st.session_state.messages:
-        st.subheader("💡 Example Questions")
+        st.subheader("Example Questions")
         examples = [
             "Show me all tables in the database",
             "What are the top 10 customers by sales?",
