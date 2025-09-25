@@ -19,7 +19,7 @@ except ImportError:
     GEMINI_AVAILABLE = False
 
 from config.gemini import (
-    GEMINI_CONFIG, SAFETY_SETTINGS, STRUCTURED_GENERATION_CONFIG, validate_gemini_config
+    GEMINI_CONFIG, SAFETY_SETTINGS, validate_gemini_config
 )
 
 logger = logging.getLogger(__name__)
@@ -208,9 +208,12 @@ class QueryClassifier:
             
             # Generate contextual response using ML
             response_prompt = (
-                f"Generate a helpful conversational response for this user input: '{user_input}'. "
-                f"The user's intent appears to be: {intent_summary}. "
-                f"You are a SailPoint IdentityIQ database assistant. Keep response concise and helpful."
+                f"User input: '{user_input}'. "
+                f"Intent analysis: {intent_summary}. "
+                f"You are a SailPoint IdentityIQ database assistant. "
+                f"For database questions, generate SQL. For unrelated topics, politely decline. "
+                f"For questions about yourself, provide helpful information. "
+                f"Keep responses concise and appropriate to your role."
             )
             
             conversation_model = genai.GenerativeModel(
@@ -577,9 +580,10 @@ class RobustSQLEngine:
     def _get_system_instruction(self) -> str:
         """Get system instruction that defines behavior without prompt engineering."""
         return (
-            "You are a SQL expert for SailPoint IdentityIQ databases. "
-            "Generate ONLY safe, read-only SQL queries (SELECT, SHOW, DESCRIBE, EXPLAIN). "
-            "Never generate INSERT, UPDATE, DELETE, or any data modification queries. "
+            "You are a SailPoint IdentityIQ database assistant. "
+            "For database-related questions about users, roles, applications, and access rights, generate ONLY safe, read-only SQL queries (SELECT, SHOW, DESCRIBE, EXPLAIN). "
+            "For questions outside your scope (weather, movies, sports, cooking, etc.), politely decline assistance. "
+            "For self-introduction or capability questions, provide helpful information about your role. "
             "Always respond with the exact JSON schema provided."
         )
 
