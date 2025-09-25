@@ -119,7 +119,9 @@ class QueryClassifier:
             
             # Track token usage for classification
             if hasattr(response, 'usage_metadata'):
-                self.total_tokens_used += getattr(response.usage_metadata, 'total_token_count', 0)
+                # Note: This should be tracked on the engine, but classifier doesn't have access
+                # We'll track it when called from the engine
+                pass
             
             classification_data = json.loads(response.text)
             
@@ -206,31 +208,31 @@ class QueryClassifier:
             if not self._initialized:
                 return self._default_conversational_response()
             
-            # Generate contextual response using ML
-            response_prompt = (
-                f"User input: '{user_input}'. "
-                f"Intent analysis: {intent_summary}. "
-                f"You are a SailPoint IdentityIQ database assistant. "
-                f"For database questions, generate SQL. For unrelated topics, politely decline. "
-                f"For questions about yourself, provide helpful information. "
-                f"Keep responses concise and appropriate to your role."
-            )
-            
+            # Use the main model for conversational responses too, but with different config
             conversation_model = genai.GenerativeModel(
                 model_name=GEMINI_CONFIG['model'],
                 generation_config=genai.GenerationConfig(
-                    temperature=0.3,
+                    temperature=0.7,  # Higher temperature for more natural conversation
                     max_output_tokens=150
+                ),
+                safety_settings=SAFETY_SETTINGS,
+                system_instruction=(
+                    "You are a SailPoint IdentityIQ database assistant. "
+                    "Respond naturally to conversational questions. "
+                    "For questions about yourself or greetings, be friendly and helpful. "
+                    "Keep responses concise and appropriate to your role as an identity management assistant."
                 )
             )
             
+            response_prompt = f"User: {user_input}\n\nRespond as a friendly SailPoint IdentityIQ assistant:"
+            
             response = conversation_model.generate_content(response_prompt)
             
-            # Track token usage for conversational responses
-            if hasattr(response, 'usage_metadata'):
-                self.total_tokens_used += getattr(response.usage_metadata, 'total_token_count', 0)
-            
-            return response.text.strip()
+            # Note: Token tracking would be done by the calling engine
+            if hasattr(response, 'text') and response.text.strip():
+                return response.text.strip()
+            else:
+                return self._default_conversational_response()
             
         except Exception as e:
             logger.warning(f"Conversational response generation failed: {str(e)}")
@@ -591,7 +593,8 @@ class RobustSQLEngine:
         self,
         user_question: str,
         schema_context: str,
-        additional_context: Optional[str] = None
+        additional_context: Optional[str] = None,
+        conversation_history: Optional[List[Dict[str, Any]]] = None
     ) -> GenerationResponse:
         """Generate SQL query or conversational response using pure ML classification."""
         if not self._initialized:
@@ -630,7 +633,22 @@ class RobustSQLEngine:
                 )
 
             # Generate SQL for database requests
-            cache_key = f"{user_question}_{hash(schema_context)}"
+            # Include conversation history in cache key for better context awareness
+            history_summary = ""
+            if conversation_history:
+                # Get last 5 relevant messages (limit token usage)
+                recent_messages = conversation_history[-10:]  # Get last 10 messages
+                relevant_messages = []
+                for msg in reversed(recent_messages):
+                    if msg.get('role') == 'user':
+                        relevant_messages.insert(0, f"User: {msg.get('content', '')}")
+                    elif msg.get('role') == 'assistant' and msg.get('query'):
+                        relevant_messages.insert(0, f"Assistant: Generated SQL: {msg.get('query')}")
+                
+                if relevant_messages:
+                    history_summary = "Recent conversation:\n" + "\n".join(relevant_messages[-5:])  # Last 5 exchanges
+            
+            cache_key = f"{user_question}_{hash(schema_context)}_{hash(history_summary)}"
             if cache_key in self.query_cache:
                 cached_result = self.query_cache[cache_key]
                 return GenerationResponse(
@@ -650,6 +668,9 @@ class RobustSQLEngine:
                 f"User Question: {user_question}",
                 f"Semantic Context: {classification['user_intent_summary']}"
             ]
+            
+            if history_summary:
+                content_parts.insert(1, history_summary)  # Insert after schema but before current question
             
             if additional_context:
                 content_parts.append(f"Additional Context: {additional_context[:500]}")
@@ -759,10 +780,39 @@ class RobustSQLEngine:
                 optimization_suggestions=[]
             )
 
-    def clear_conversation(self):
-        """Clear conversation history and cache."""
-        self.query_cache.clear()
-        logger.info("Cache and conversation history cleared")
+    def analyze_error(
+        self,
+        error_message: str,
+        query: str,
+        schema_context: str
+    ) -> Dict[str, Any]:
+        """Analyze SQL execution errors and provide helpful feedback."""
+        try:
+            if not self._initialized:
+                if not self.initialize():
+                    return {"explanation": "AI analysis unavailable"}
+
+            analysis_prompt = f"""
+Analyze this SQL execution error and provide helpful feedback:
+
+Error: {error_message}
+Query: {query}
+Schema Context: {schema_context[:1000]}
+
+Please explain what went wrong and suggest how to fix it.
+"""
+
+            response = self.model.generate_content(analysis_prompt)
+            
+            return {
+                "explanation": response.text.strip() if hasattr(response, 'text') else "Error analysis failed"
+            }
+            
+        except Exception as e:
+            logger.warning(f"Error analysis failed: {str(e)}")
+            return {
+                "explanation": f"Unable to analyze error: {str(e)}"
+            }
 
     def get_usage_stats(self) -> Dict[str, Any]:
         """Get usage statistics."""

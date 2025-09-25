@@ -353,7 +353,8 @@ def process_user_message(user_input: str):
             # Generate response using Gemini
             response = sql_engine.generate_sql_query(
                 user_question=user_input,
-                schema_context=st.session_state.schema_context
+                schema_context=st.session_state.schema_context,
+                conversation_history=st.session_state.messages
             )
             
             # Check if this is a conversational response (no SQL query generated)
